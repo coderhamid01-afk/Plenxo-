@@ -1,0 +1,200 @@
+package com.example
+
+import android.Manifest
+import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.widget.FrameLayout
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
+import com.example.data.repository.SecurityRepository
+import com.example.model.ChatRoom
+import com.example.navigation.PlenxoNavGraph
+import com.example.ui.BaseActivity
+import com.example.ui.theme.PlenxoTheme
+import com.example.util.PermissionManager
+import com.example.util.SessionManager
+import com.example.viewmodel.PlenxoScreen
+import com.example.viewmodel.PlenxoViewModel
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class MainActivity : BaseActivity() {
+
+    private val currentIntentState = mutableStateOf<Intent?>(null)
+    private var mainViewModel: PlenxoViewModel? = null
+
+    override fun onResume() {
+        super.onResume()
+        checkGlobalAccountLockout()
+    }
+
+    fun checkGlobalAccountLockout() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val uid = currentUser?.uid
+        if (uid.isNullOrBlank()) return
+        val email = currentUser.email ?: uid
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val securityRepository = SecurityRepository(applicationContext)
+            val model = securityRepository.checkAccountLockoutStatus(uid) 
+                ?: securityRepository.checkAccountLockoutStatus(email)
+            if (model != null && model.isLockedOut()) {
+                Log.w("MainActivity", "24-Hour Account Lockdown detected for $uid! Revoking active session.")
+                withContext(Dispatchers.Main) {
+                    FirebaseAuth.getInstance().signOut()
+                    SessionManager.clearLoginState(applicationContext)
+                    mainViewModel?.navigateToScreen(
+                        PlenxoScreen.LOGIN,
+                        addToHistory = false,
+                        clearHistory = true
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        currentIntentState.value = intent
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        currentIntentState.value = intent
+        Log.d("MainActivity", "onCreate started with Edge-To-Edge and Native OS System Permission Trigger")
+        
+        // Handle global crash restart recovery notice
+        if (intent?.getBooleanExtra("GLOBAL_CRASH_RESTART", false) == true) {
+            val crashPrefs = getSharedPreferences("app_crash_logs", MODE_PRIVATE)
+            val lastCrash = crashPrefs.getString("last_crash_log", "No crash log recorded")
+            android.util.Log.e("PlenxoCrashDebug", "LAST CRASH LOG: $lastCrash")
+            Toast.makeText(
+                this, 
+                "Plenxo recovered from crash: ${lastCrash?.take(100)}", 
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        // Enable modern Edge-to-Edge window insets with dark background
+        enableEdgeToEdge()
+        window.decorView.setBackgroundColor(android.graphics.Color.parseColor("#0B0E14"))
+        val permissionManager = PermissionManager(this)
+        val stage = SessionManager.getSavedOnboardingStage(applicationContext)
+        Log.d("MainActivity", "App launch onboarding stage: $stage")
+        
+        try {
+            setContent {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.activity.compose.LocalActivityResultRegistryOwner provides this@MainActivity
+                ) {
+                    val viewModel: PlenxoViewModel = viewModel()
+                    mainViewModel = viewModel
+                    val themeMode by viewModel.appThemeMode.collectAsState()
+                    val activeIntent by currentIntentState
+                    
+                    // Access LocalConfiguration to ensure the entire Compose tree dynamically reacts to Locale configuration changes instantly
+                    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+                    @Suppress("UNUSED_VARIABLE")
+                    val currentLocaleTag = remember(configuration) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            configuration.locales.get(0)?.toLanguageTag() ?: "en"
+                        } else {
+                            @Suppress("DEPRECATION")
+                            configuration.locale.language
+                        }
+                    }
+                    
+                    LaunchedEffect(Unit) {
+                        if (intent?.getBooleanExtra("GLOBAL_CRASH_RESTART", false) == true) {
+                            viewModel.handleCrashRecovery()
+                        }
+                    }
+
+                    LaunchedEffect(activeIntent) {
+                        val currIntent = activeIntent ?: return@LaunchedEffect
+                        try {
+                            viewModel.handleDeepLink(currIntent.data)
+
+                            if (currIntent.hasExtra("type") && currIntent.getStringExtra("type") == "friend_request") {
+                                viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS)
+                                currIntent.removeExtra("type")
+                            } else if (currIntent.hasExtra("chatId")) {
+                                val chatId = currIntent.getStringExtra("chatId")
+                                val senderId = currIntent.getStringExtra("senderId")
+                                if (chatId != null) {
+                                    if (senderId != null) {
+                                        viewModel.openChatRoom(ChatRoom(chatId = chatId, participantUids = listOf(viewModel.currentUserId, senderId)))
+                                    } else {
+                                        viewModel.currentChatId.value = chatId
+                                        viewModel.navigateToScreen(PlenxoScreen.CHAT_DETAIL)
+                                    }
+                                }
+                                currIntent.removeExtra("chatId")
+                            }
+
+                            val navigateTo = currIntent.getStringExtra("NAVIGATE_TO")
+                            if (navigateTo != null) {
+                                try {
+                                    val screen = PlenxoScreen.valueOf(navigateTo)
+                                    viewModel.navigateToScreen(screen)
+                                } catch (e: Exception) {
+                                    if (navigateTo == "WALLPAPER_GALLERY") {
+                                        viewModel.navigateToScreen(PlenxoScreen.WALLPAPER_GALLERY)
+                                    }
+                                }
+                                currIntent.removeExtra("NAVIGATE_TO")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error handling intent extras: ${e.message}")
+                        }
+                    }
+                    
+                    PlenxoTheme(themeMode = themeMode) {
+                        androidx.compose.material3.Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = androidx.compose.ui.graphics.Color(0xFF0B0E14)
+                        ) {
+                            androidx.compose.material3.Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.background
+                            ) {
+                                PlenxoNavGraph(
+                                    viewModel = viewModel, 
+                                    permissionManager = permissionManager
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DEBUG_UI", "Error initializing MainActivity setContent UI", e)
+        }
+    }
+}

@@ -1,0 +1,182 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users public and private profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(userId);
+
+      // Subcollections under users (e.g. friend_requests, active_sessions, devices)
+      match /friend_requests/{senderId} {
+        allow read, write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == senderId);
+      }
+
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Users data parallel collection
+    match /users_data/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(userId);
+      
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Unified Presence collection
+    match /presence/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(userId);
+    }
+
+    // Backward-compatible users_presence collection
+    match /users_presence/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isOwner(userId);
+    }
+
+    // Top-level Active Sessions (SecurityViewModel)
+    match /active_sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+    }
+
+    // Friend Requests (Global collection)
+    match /friend_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        (request.resource.data.senderUid == request.auth.uid || request.resource.data.requestFrom == request.auth.uid);
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid ||
+         resource.data.requestFrom == request.auth.uid || resource.data.requestTo == request.auth.uid);
+    }
+
+    // Chat Requests
+    match /chat_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        (request.resource.data.senderUid == request.auth.uid || request.resource.data.requestFrom == request.auth.uid);
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid ||
+         resource.data.requestFrom == request.auth.uid || resource.data.requestTo == request.auth.uid);
+    }
+
+    // Chats and subcollections (messages, participants, typing, media)
+    match /chats/{chatId} {
+      allow read, write: if isAuthenticated();
+      
+      match /{allChildren=**} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Messages collection
+    match /messages/{messageId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // WebRTC Calls & ICE Candidates signaling
+    match /calls/{callId} {
+      allow read, write: if isAuthenticated();
+
+      match /ice_candidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      match /{subcollection=**} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Call Logs & History
+    match /call_logs/{callLogId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /call_history/{callHistoryId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Contacts & Relationships
+    match /contacts/{contactId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /friends/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /blocked_users/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /blocked_list/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Status Updates / Stories
+    match /status/{statusId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+    }
+
+    // Security & Cryptographic Keys
+    match /security_keys/{keyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /archived_keys/{keyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // User Profile History & Sharing
+    match /profile_shares/{shareId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /name_history/{historyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /bio_history/{historyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /avatar_history/{historyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // App Invitations
+    match /invitations/{invitationId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Bug Reports & Feedback
+    match /bug_reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // App Configuration & Metadata
+    match /app_config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Read-only for clients, managed via Firebase Console / Admin SDK
+    }
+  }
+}

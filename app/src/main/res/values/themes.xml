@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MyApplication" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">#0B0E14</item>
+        <item name="android:colorBackground">#0B0E14</item>
+        <item name="android:navigationBarColor">#0B0E14</item>
+        <item name="android:statusBarColor">#0B0E14</item>
+        <item name="alertDialogTheme">@style/CustomDialogTheme</item>
+    </style>
+
+    <!-- Custom High-Contrast Dark Dialog Theme -->
+    <style name="CustomDialogTheme" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:background">#0B0E14</item>
+        <item name="android:windowBackground">#0B0E14</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="colorAccent">@color/electric_violet</item>
+        <item name="colorControlActivated">@color/electric_violet</item>
+        <item name="colorControlHighlight">#30363D</item>
+        <item name="colorControlNormal">@color/text_secondary</item>
+        <item name="buttonBarButtonStyle">@style/CustomDialogButton</item>
+    </style>
+
+    <style name="CustomDialogButton" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/cyan</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>
