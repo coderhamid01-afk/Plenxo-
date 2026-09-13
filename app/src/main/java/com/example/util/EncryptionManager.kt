@@ -84,7 +84,7 @@ object EncryptionManager {
             
             // 1. Decrypt AES key with my RSA private key
             val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            val privateKey = keyStore.getKey(KEY_ALIAS, null) as PrivateKey
+            val privateKey = keyStore.getKey(KEY_ALIAS, null) as? PrivateKey ?: return encryptedPackage
             val rsaCipher = Cipher.getInstance(RSA_TRANSFORMATION)
             rsaCipher.init(Cipher.DECRYPT_MODE, privateKey)
             val aesKeyBytes = rsaCipher.doFinal(encryptedAesKey)
@@ -95,7 +95,7 @@ object EncryptionManager {
             cipher.init(Cipher.DECRYPT_MODE, aesKey, GCMParameterSpec(TAG_SIZE, iv))
             return String(cipher.doFinal(ciphertext))
         } catch (e: Exception) {
-            return "[Decryption Failed]"
+            return encryptedPackage
         }
     }
 

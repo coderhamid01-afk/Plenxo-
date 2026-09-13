@@ -614,62 +614,29 @@ private fun ChatInputBar(
 
     var isFocused by remember { mutableStateOf(false) }
 
-    val animatedElevation by animateDpAsState(
-        targetValue = if (isFocused) 12.dp else 4.dp,
-        animationSpec = tween(durationMillis = 250),
-        label = "glass_elevation"
-    )
-
-    val animatedBorderAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 0.55f else 0.35f,
-        animationSpec = tween(durationMillis = 250),
-        label = "glass_border_alpha"
-    )
-
-    val glassBorderBrush = Brush.linearGradient(
-        colors = listOf(
-            Color.White.copy(alpha = animatedBorderAlpha),
-            Color.White.copy(alpha = 0.08f)
-        )
-    )
-
-    val isAndroid12Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val glassContainerColor = if (isAndroid12Plus) {
-        Color(0xFF1E1E2E).copy(alpha = 0.50f)
-    } else {
-        Color(0xFF1E1E2E).copy(alpha = 0.82f)
-    }
-
-    // Liquid Glass Container with hardware backdrop blur & frosted gradient border
+    // Solid, sleek dark surface container with clean borders and no blur artifacts
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .shadow(
-                elevation = animatedElevation,
+                elevation = 6.dp,
                 shape = RoundedCornerShape(28.dp),
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-                spotColor = primaryColor.copy(alpha = 0.45f)
+                ambientColor = Color.Black.copy(alpha = 0.45f),
+                spotColor = Color.Black.copy(alpha = 0.45f)
             )
             .clip(RoundedCornerShape(28.dp))
-            .then(
-                if (isAndroid12Plus) {
-                    Modifier.blur(20.dp)
-                } else {
-                    Modifier
-                }
-            )
-            .background(glassContainerColor)
+            .background(Color(0xFF1E293B))
             .border(
                 width = 1.dp,
-                brush = glassBorderBrush,
+                color = if (isFocused) Color(0xFF22C55E).copy(alpha = 0.60f) else Color(0xFF334155),
                 shape = RoundedCornerShape(28.dp)
             )
             .animateContentSize(animationSpec = tween(180))
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -716,25 +683,33 @@ private fun ChatInputBar(
                             IconButton(
                                 onClick = onAttachClick,
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(38.dp)
                                     .testTag("attach_media_button")
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AttachFile,
                                     contentDescription = "Attach Media",
-                                    tint = Color.White.copy(alpha = 0.90f),
+                                    tint = Color(0xFF94A3B8),
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(2.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
 
                             OutlinedTextField(
                                 value = inputText,
                                 onValueChange = onInputTextChange,
                                 placeholder = {
-                                    Text("Type a message...", color = Color.White.copy(alpha = 0.60f), fontSize = 14.sp)
+                                    Text(
+                                        text = "Type a message...",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 15.sp
+                                    )
                                 },
+                                textStyle = LocalTextStyle.current.copy(
+                                    color = Color.White,
+                                    fontSize = 15.sp
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
                                     .onFocusChanged { focusState ->
@@ -747,9 +722,11 @@ private fun ChatInputBar(
                                     disabledContainerColor = Color.Transparent,
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
+                                    focusedPlaceholderColor = Color(0xFF94A3B8),
+                                    unfocusedPlaceholderColor = Color(0xFF94A3B8),
                                     focusedBorderColor = Color.Transparent,
                                     unfocusedBorderColor = Color.Transparent,
-                                    cursorColor = AccentGreen
+                                    cursorColor = Color(0xFF22C55E)
                                 ),
                                 shape = RoundedCornerShape(24.dp),
                                 maxLines = 4
@@ -758,11 +735,9 @@ private fun ChatInputBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                // Fixed-size slot: whatever AnimatedContent puts inside here is centered and
-                // clipped to exactly 44.dp, so the mic ↔ send crossfade can never ripple out
-                // into the rest of the row's measured size.
+                // Fixed-size slot: centered and clipped to exactly 44.dp
                 Box(
                     modifier = Modifier.size(44.dp),
                     contentAlignment = Alignment.Center
@@ -784,21 +759,21 @@ private fun ChatInputBar(
                                 icon = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
                                 testTag = "send_message_button",
-                                containerColor = AccentGreen,
+                                containerColor = Color(0xFF22C55E),
                                 onClick = onSendText
                             )
                             InputAction.SEND_VOICE -> RoundActionButton(
                                 icon = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send voice message",
                                 testTag = "send_voice_button",
-                                containerColor = AccentGreen,
+                                containerColor = Color(0xFF22C55E),
                                 onClick = { stopAndSendRecording() }
                             )
                             InputAction.RECORD -> RoundActionButton(
                                 icon = Icons.Default.Mic,
                                 contentDescription = "Record Voice Note",
                                 testTag = "mic_record_button",
-                                containerColor = AccentGreen,
+                                containerColor = Color(0xFF22C55E),
                                 onClick = { beginRecording() }
                             )
                         }

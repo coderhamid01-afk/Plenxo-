@@ -73,6 +73,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -110,6 +111,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.model.CaptchaShapeItem
+import com.example.model.CaptchaShapeType
+import com.example.model.SequenceCaptchaGenerator
+import com.example.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.hypot
@@ -134,6 +139,7 @@ enum class CaptchaStep {
 @Composable
 fun HumanVerificationCaptchaDialog(
     visible: Boolean,
+    authViewModel: AuthViewModel? = null,
     onDismiss: () -> Unit,
     onVerificationSuccess: () -> Unit,
     primaryColor: Color = Color(0xFF059669)
@@ -156,6 +162,7 @@ fun HumanVerificationCaptchaDialog(
             contentAlignment = Alignment.Center
         ) {
             HumanVerificationCaptchaContent(
+                authViewModel = authViewModel,
                 onDismiss = onDismiss,
                 onVerificationSuccess = onVerificationSuccess,
                 primaryColor = primaryColor
@@ -167,6 +174,7 @@ fun HumanVerificationCaptchaDialog(
 @Composable
 fun HumanVerificationCaptchaContent(
     modifier: Modifier = Modifier,
+    authViewModel: AuthViewModel? = null,
     onDismiss: () -> Unit,
     onVerificationSuccess: () -> Unit,
     primaryColor: Color = Color(0xFF059669)
@@ -333,6 +341,7 @@ fun HumanVerificationCaptchaContent(
                     CaptchaStep.SHAPE_SEQUENCE -> {
                         CaptchaStep3Sequence(
                             primaryColor = primaryColor,
+                            authViewModel = authViewModel,
                             onStepComplete = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 coroutineScope.launch {
@@ -1029,63 +1038,212 @@ private fun DrawScope.drawEmblemSlice(
 }
 
 // -------------------------------------------------------------
-// STEP 3: SHAPE SEQUENCE MATCH (AUTO-ADVANCE ON EXACT ORDER)
+// STEP 3: DYNAMIC SHAPE SEQUENCE MATCH (SECURE & RANDOMIZED)
 // -------------------------------------------------------------
-private data class ShapeItem(
-    val id: Int,
-    val name: String,
-    val icon: ImageVector,
-    val color: Color
-)
+@Composable
+fun CaptchaShapeCanvas(
+    shapeType: CaptchaShapeType,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val minDim = minOf(w, h)
+        val center = Offset(w / 2f, h / 2f)
+
+        when (shapeType) {
+            CaptchaShapeType.CIRCLE -> {
+                drawCircle(
+                    color = color,
+                    radius = minDim * 0.40f,
+                    center = center
+                )
+            }
+            CaptchaShapeType.SQUARE -> {
+                val side = minDim * 0.70f
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(center.x - side / 2f, center.y - side / 2f),
+                    size = androidx.compose.ui.geometry.Size(side, side),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(minDim * 0.12f)
+                )
+            }
+            CaptchaShapeType.TRIANGLE -> {
+                val path = Path().apply {
+                    moveTo(center.x, center.y - minDim * 0.42f)
+                    lineTo(center.x + minDim * 0.42f, center.y + minDim * 0.38f)
+                    lineTo(center.x - minDim * 0.42f, center.y + minDim * 0.38f)
+                    close()
+                }
+                drawPath(path = path, color = color)
+            }
+            CaptchaShapeType.STAR -> {
+                val outerRadius = minDim * 0.44f
+                val innerRadius = minDim * 0.20f
+                val path = Path()
+                val numPoints = 5
+                val angleStep = Math.PI / numPoints
+                var currentAngle = -Math.PI / 2.0 // point straight up
+
+                for (i in 0 until (numPoints * 2)) {
+                    val r = if (i % 2 == 0) outerRadius else innerRadius
+                    val x = center.x + (r * Math.cos(currentAngle)).toFloat()
+                    val y = center.y + (r * Math.sin(currentAngle)).toFloat()
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    currentAngle += angleStep
+                }
+                path.close()
+                drawPath(path = path, color = color)
+            }
+            CaptchaShapeType.DIAMOND -> {
+                val path = Path().apply {
+                    moveTo(center.x, center.y - minDim * 0.44f)
+                    lineTo(center.x + minDim * 0.40f, center.y)
+                    lineTo(center.x, center.y + minDim * 0.44f)
+                    lineTo(center.x - minDim * 0.40f, center.y)
+                    close()
+                }
+                drawPath(path = path, color = color)
+            }
+            CaptchaShapeType.HEXAGON -> {
+                val r = minDim * 0.44f
+                val path = Path()
+                for (i in 0 until 6) {
+                    val angle = Math.toRadians((60.0 * i) - 30.0)
+                    val x = center.x + (r * Math.cos(angle)).toFloat()
+                    val y = center.y + (r * Math.sin(angle)).toFloat()
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                path.close()
+                drawPath(path = path, color = color)
+            }
+            CaptchaShapeType.HEART -> {
+                val path = Path().apply {
+                    val top = center.y - minDim * 0.38f
+                    val bottom = center.y + minDim * 0.42f
+                    val left = center.x - minDim * 0.42f
+                    val right = center.x + minDim * 0.42f
+                    moveTo(center.x, bottom)
+                    cubicTo(left, center.y + minDim * 0.15f, left - minDim * 0.05f, top, center.x - minDim * 0.20f, top)
+                    cubicTo(center.x - minDim * 0.05f, top, center.x, center.y - minDim * 0.18f, center.x, center.y - minDim * 0.18f)
+                    cubicTo(center.x, center.y - minDim * 0.18f, center.x + minDim * 0.05f, top, center.x + minDim * 0.20f, top)
+                    cubicTo(right + minDim * 0.05f, top, right, center.y + minDim * 0.15f, center.x, bottom)
+                    close()
+                }
+                drawPath(path = path, color = color)
+            }
+        }
+    }
+}
 
 @Composable
 private fun CaptchaStep3Sequence(
     primaryColor: Color,
+    authViewModel: AuthViewModel? = null,
     onStepComplete: () -> Unit
 ) {
-    val targetSequence = remember {
-        listOf(
-            ShapeItem(1, "Star", Icons.Default.Star, Color(0xFFF59E0B)),
-            ShapeItem(2, "Circle", Icons.Default.Circle, Color(0xFF06B6D4)),
-            ShapeItem(3, "Triangle", Icons.Default.ChangeHistory, Color(0xFFF43F5E)),
-            ShapeItem(4, "Square", Icons.Default.CropSquare, Color(0xFF818CF8))
-        )
-    }
-
-    val scrambledShapes = remember { targetSequence.shuffled(Random(42)) }
-    val selectedShapesList = remember { mutableStateListOf<Int>() }
-
-    var isWrongSequence by rememberSaveable { mutableStateOf(false) }
-    var isSuccess by rememberSaveable { mutableStateOf(false) }
+    // Fallback local session states if authViewModel is not supplied
+    var localTargetSequence by remember { mutableStateOf<List<CaptchaShapeItem>>(emptyList()) }
+    var localGridShapes by remember { mutableStateOf<List<CaptchaShapeItem>>(emptyList()) }
+    val localSelectedShapesList = remember { mutableStateListOf<String>() }
+    var localIsWrongSequence by rememberSaveable { mutableStateOf(false) }
+    var localIsSuccess by rememberSaveable { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
-    fun handleShapeTap(shape: ShapeItem) {
+    // Initialize/generate session
+    LaunchedEffect(Unit) {
+        if (authViewModel != null) {
+            authViewModel.generateSequenceCaptchaSession()
+        } else {
+            val (target, grid) = SequenceCaptchaGenerator.generateSession(minLen = 3, maxLen = 5)
+            localTargetSequence = target
+            localGridShapes = grid
+            localSelectedShapesList.clear()
+            localIsWrongSequence = false
+            localIsSuccess = false
+        }
+    }
+
+    val targetSequence = if (authViewModel != null) {
+        authViewModel.sequenceCaptchaTarget.collectAsState().value
+    } else {
+        localTargetSequence
+    }
+
+    val gridShapes = if (authViewModel != null) {
+        authViewModel.sequenceCaptchaGrid.collectAsState().value
+    } else {
+        localGridShapes
+    }
+
+    val selectedCount = if (authViewModel != null) {
+        authViewModel.sequenceCaptchaSelectedIds.collectAsState().value.size
+    } else {
+        localSelectedShapesList.size
+    }
+
+    val isWrongSequence = if (authViewModel != null) {
+        authViewModel.isSequenceCaptchaError.collectAsState().value
+    } else {
+        localIsWrongSequence
+    }
+
+    val isSuccess = if (authViewModel != null) {
+        authViewModel.isSequenceCaptchaSuccess.collectAsState().value
+    } else {
+        localIsSuccess
+    }
+
+    fun handleShapeTap(shape: CaptchaShapeItem) {
         if (isSuccess) return
 
-        val currentIndex = selectedShapesList.size
-        if (currentIndex < targetSequence.size) {
-            val expectedShape = targetSequence[currentIndex]
-            if (shape.id == expectedShape.id) {
+        if (authViewModel != null) {
+            val isComplete = authViewModel.validateSequenceShapeTap(shape)
+            if (isComplete) {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                isWrongSequence = false
-                selectedShapesList.add(shape.id)
-
-                if (selectedShapesList.size == targetSequence.size) {
-                    isSuccess = true
-                    coroutineScope.launch {
-                        delay(300)
-                        onStepComplete()
-                    }
+                coroutineScope.launch {
+                    delay(300)
+                    onStepComplete()
                 }
-            } else {
+            } else if (authViewModel.isSequenceCaptchaError.value) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                isWrongSequence = true
-                selectedShapesList.clear()
                 coroutineScope.launch {
                     delay(1200)
-                    isWrongSequence = false
+                    authViewModel.clearSequenceCaptchaError()
+                }
+            } else {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        } else {
+            val currentIndex = localSelectedShapesList.size
+            if (currentIndex < targetSequence.size) {
+                val expectedShape = targetSequence[currentIndex]
+                val isMatch = shape.id == expectedShape.id ||
+                        (shape.shapeType == expectedShape.shapeType && shape.colorName == expectedShape.colorName)
+
+                if (isMatch) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    localIsWrongSequence = false
+                    localSelectedShapesList.add(shape.id)
+
+                    if (localSelectedShapesList.size == targetSequence.size) {
+                        localIsSuccess = true
+                        coroutineScope.launch {
+                            delay(300)
+                            onStepComplete()
+                        }
+                    }
+                } else {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    localIsWrongSequence = true
+                    localSelectedShapesList.clear()
+                    coroutineScope.launch {
+                        delay(1200)
+                        localIsWrongSequence = false
+                    }
                 }
             }
         }
@@ -1103,13 +1261,13 @@ private fun CaptchaStep3Sequence(
             color = Color(0xFFCBD5E1)
         )
         Text(
-            text = "Tap the shapes below in the order shown above",
+            text = "Tap the shapes below in the exact order shown",
             fontSize = 11.sp,
             color = Color(0xFF94A3B8),
             textAlign = TextAlign.Center
         )
 
-        // Target Sequence Bar
+        // Dynamic Target Sequence Display Bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1120,25 +1278,26 @@ private fun CaptchaStep3Sequence(
                     if (isWrongSequence) MaterialTheme.colorScheme.error else Color(0xFF334155),
                     RoundedCornerShape(16.dp)
                 )
-                .padding(vertical = 12.dp, horizontal = 8.dp),
+                .padding(vertical = 12.dp, horizontal = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                targetSequence.forEachIndexed { index, shape ->
-                    val isMatched = index < selectedShapesList.size
-                    val isCurrent = index == selectedShapesList.size && !isSuccess
+                targetSequence.forEachIndexed { index, shapeItem ->
+                    val isMatched = index < selectedCount
+                    val isCurrent = index == selectedCount && !isSuccess
 
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(if (targetSequence.size > 4) 40.dp else 44.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 when {
                                     isMatched -> primaryColor.copy(alpha = 0.25f)
-                                    isCurrent -> shape.color.copy(alpha = 0.2f)
+                                    isCurrent -> shapeItem.color.copy(alpha = 0.2f)
                                     else -> Color(0xFF0F172A)
                                 }
                             )
@@ -1146,7 +1305,7 @@ private fun CaptchaStep3Sequence(
                                 width = if (isCurrent) 2.dp else 1.dp,
                                 color = when {
                                     isMatched -> primaryColor
-                                    isCurrent -> shape.color
+                                    isCurrent -> shapeItem.color
                                     else -> Color(0xFF334155)
                                 },
                                 shape = RoundedCornerShape(12.dp)
@@ -1161,11 +1320,10 @@ private fun CaptchaStep3Sequence(
                                 modifier = Modifier.size(20.dp)
                             )
                         } else {
-                            Icon(
-                                imageVector = shape.icon,
-                                contentDescription = shape.name,
-                                tint = shape.color,
-                                modifier = Modifier.size(22.dp)
+                            CaptchaShapeCanvas(
+                                shapeType = shapeItem.shapeType,
+                                color = shapeItem.color,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -1176,8 +1334,8 @@ private fun CaptchaStep3Sequence(
                             contentDescription = null,
                             tint = Color(0xFF475569),
                             modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(14.dp)
+                                .padding(horizontal = if (targetSequence.size > 4) 2.dp else 4.dp)
+                                .size(12.dp)
                         )
                     }
                 }
@@ -1186,46 +1344,55 @@ private fun CaptchaStep3Sequence(
 
         if (isWrongSequence) {
             Text(
-                text = "Incorrect order. Please try again",
+                text = "Incorrect sequence! Tap order reset.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.Medium
             )
         }
 
-        // Scrambled Selectable Shapes Below
-        Row(
+        // Shuffled Selection Grid (Dynamic Rows / Columns)
+        val columnCount = if (gridShapes.size > 6) 4 else 3
+        val rows = gridShapes.chunked(columnCount)
+
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            scrambledShapes.forEach { shape ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable(enabled = !isSuccess) { handleShapeTap(shape) }
+            rows.forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF1E293B))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = shape.icon,
-                            contentDescription = shape.name,
-                            tint = shape.color,
-                            modifier = Modifier.size(28.dp)
-                        )
+                    rowItems.forEach { shapeItem ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF1E293B))
+                                .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
+                                .clickable(enabled = !isSuccess) { handleShapeTap(shapeItem) }
+                                .padding(vertical = 8.dp, horizontal = 4.dp)
+                        ) {
+                            CaptchaShapeCanvas(
+                                shapeType = shapeItem.shapeType,
+                                color = shapeItem.color,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = shapeItem.displayName,
+                                fontSize = 10.sp,
+                                color = Color(0xFF94A3B8),
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = shape.name,
-                        fontSize = 11.sp,
-                        color = Color(0xFF94A3B8),
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
         }
@@ -1244,7 +1411,7 @@ private fun CaptchaStep3Sequence(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Matched! Final step...",
+                    text = "Matched! Proceeding to final step...",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = primaryColor

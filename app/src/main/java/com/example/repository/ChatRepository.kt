@@ -69,8 +69,6 @@ class ChatRepository(private val context: Context) {
 
         val query = firestore.collection("messages")
             .whereEqualTo("chatId", chatId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(limit.toLong())
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null || snapshot == null) {
@@ -90,7 +88,7 @@ class ChatRepository(private val context: Context) {
                     mediaUrl = (data["mediaUrl"] as? String) ?: "",
                     timestamp = (data["timestamp"] as? Long) ?: System.currentTimeMillis()
                 )
-            }.reversed()
+            }.sortedBy { it.timestamp }
 
             trySend(messages)
         }
@@ -104,8 +102,6 @@ class ChatRepository(private val context: Context) {
         return try {
             val snapshot = firestore.collection("messages")
                 .whereEqualTo("chatId", chatId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(limit.toLong())
                 .get()
                 .await()
 
@@ -121,7 +117,7 @@ class ChatRepository(private val context: Context) {
                     mediaUrl = (data["mediaUrl"] as? String) ?: "",
                     timestamp = (data["timestamp"] as? Long) ?: System.currentTimeMillis()
                 )
-            }.reversed()
+            }.sortedBy { it.timestamp }
         } catch (e: Exception) {
             emptyList()
         }

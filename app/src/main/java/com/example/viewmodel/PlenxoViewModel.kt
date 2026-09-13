@@ -4875,11 +4875,26 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
     fun startListeningForMessages(chatId: String) {
         val currentUid = currentUserId
-        val receiverUid = currentChatRecipientUid.value
+        var receiverUid = currentChatRecipientUid.value
+        
+        if (receiverUid.isBlank() && chatId.contains("_")) {
+            val parts = chatId.split("_")
+            receiverUid = parts.firstOrNull { it != currentUid } ?: ""
+            if (receiverUid.isNotBlank()) {
+                currentChatRecipientUid.value = receiverUid
+            }
+        }
+
         val resolvedChatId = if (currentUid.isNotEmpty() && receiverUid.isNotEmpty()) {
             getChatRoomId(currentUid, receiverUid)
-        } else {
+        } else if (chatId.isNotEmpty()) {
             chatId
+        } else {
+            currentChatId.value
+        }
+        
+        if (resolvedChatId.isNotEmpty()) {
+            currentChatId.value = resolvedChatId
         }
         
         _messagesOffset = 0
@@ -4903,6 +4918,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
                     Message(
                         messageId = payload.messageId,
+                        chatId = payload.chatId,
                         senderId = payload.senderId,
                         receiverId = payload.receiverId,
                         messageText = decryptedText,
@@ -4916,6 +4932,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                             else -> DeliveryStatus.SENT
                         },
                         messageType = payload.messageType,
+                        mediaUrl = payload.mediaUrl,
                         replyToMessageId = payload.replyToMessageId,
                         isEdited = payload.isEdited,
                         expiresAt = payload.expiresAt,
@@ -4927,10 +4944,10 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                     it.expiresAt == null || it.expiresAt > System.currentTimeMillis() 
                 }
                 
-                val newestMsg = filteredMsgs.firstOrNull()
+                val newestMsg = filteredMsgs.lastOrNull()
                 if (newestMsg != null && newestMsg.senderId != currentUid) {
                     val prevMsgs = _messages.value
-                    val isNewMessage = prevMsgs.isEmpty() || prevMsgs.firstOrNull()?.messageId != newestMsg.messageId
+                    val isNewMessage = prevMsgs.isEmpty() || prevMsgs.lastOrNull()?.messageId != newestMsg.messageId
                     if (isNewMessage) {
                         val isBackground = try {
                             androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState < androidx.lifecycle.Lifecycle.State.STARTED
@@ -4949,7 +4966,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 _messages.value = filteredMsgs
-                markMessagesAsRead(chatId)
+                markMessagesAsRead(resolvedChatId)
             }
         }
     }
@@ -5062,7 +5079,28 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        val resolvedChatId = getChatRoomId(senderId, receiverId)
+        var effectiveReceiverId = receiverId.ifBlank { currentChatRecipientUid.value }
+        if (effectiveReceiverId.isBlank() && chatId.contains("_")) {
+            val parts = chatId.split("_")
+            effectiveReceiverId = parts.firstOrNull { it != senderId } ?: ""
+            if (effectiveReceiverId.isNotBlank()) {
+                currentChatRecipientUid.value = effectiveReceiverId
+            }
+        }
+
+        val resolvedChatId = if (senderId.isNotBlank() && effectiveReceiverId.isNotBlank()) {
+            getChatRoomId(senderId, effectiveReceiverId)
+        } else if (chatId.isNotBlank()) {
+            chatId
+        } else {
+            currentChatId.value
+        }
+
+        if (resolvedChatId.isBlank()) {
+            Log.e("Plenxo", "Cannot send message: resolvedChatId is blank")
+            return
+        }
+
         val activeFontId = "DEFAULT"
         val messageId = java.util.UUID.randomUUID().toString()
         val replyToId = replyToMessage.value?.messageId
@@ -5079,7 +5117,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             messageId = messageId,
             chatId = resolvedChatId,
             senderId = senderId,
-            receiverId = receiverId,
+            receiverId = effectiveReceiverId,
             messageText = displaySummary,
             messageType = messageType,
             timestamp = System.currentTimeMillis(),
@@ -5107,31 +5145,13 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                     messagePayloadText = displaySummary
-                } else {
-                    try {
-                        var receiverPublicKey = ""
-                        try {
-                            val userDoc = firestore.collection("users").document(receiverId).get().await()
-                            val receiverProfile = userDoc.toObject(UserProfile::class.java)
-                            receiverPublicKey = receiverProfile?.publicKey ?: ""
-                        } catch (keyEx: Exception) {
-                            Log.e("Plenxo", "Key resolution failed for user $receiverId: ${keyEx.message}", keyEx)
-                        }
-
-                        if (receiverPublicKey.isNotEmpty()) {
-                            messagePayloadText = com.example.util.EncryptionManager.encryptMessage(text, receiverPublicKey)
-                        }
-                    } catch (encEx: Exception) {
-                        Log.e("Plenxo", "Encryption failed, falling back to raw plaintext: ${encEx.message}", encEx)
-                        messagePayloadText = text
-                    }
                 }
 
                 val payload = com.example.model.MessagePayload(
                     messageId = messageId,
                     chatId = resolvedChatId,
                     senderId = senderId,
-                    receiverId = receiverId,
+                    receiverId = effectiveReceiverId,
                     messageText = messagePayloadText,
                     messageType = messageType,
                     mediaUrl = mediaUrl,
@@ -5146,20 +5166,22 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                 dynamicStorageManager.saveMessage(payload)
 
                 try {
-                    val senderDisplayName = displayName.value.ifBlank { "Plenxo User" }
-                    val notificationPayload = mapOf(
-                        "sender_id" to senderId,
-                        "sender_name" to senderDisplayName,
-                        "message_text" to text.trim(),
-                        "chat_id" to resolvedChatId,
-                        "type" to "chat",
-                        "timestamp" to System.currentTimeMillis()
-                    )
-                    com.google.firebase.database.FirebaseDatabase.getInstance()
-                        .getReference("notifications")
-                        .child(receiverId)
-                        .child(messageId)
-                        .setValue(notificationPayload)
+                    if (effectiveReceiverId.isNotBlank()) {
+                        val senderDisplayName = displayName.value.ifBlank { "Plenxo User" }
+                        val notificationPayload = mapOf(
+                            "sender_id" to senderId,
+                            "sender_name" to senderDisplayName,
+                            "message_text" to text.trim(),
+                            "chat_id" to resolvedChatId,
+                            "type" to "chat",
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                        com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("notifications")
+                            .child(effectiveReceiverId)
+                            .child(messageId)
+                            .setValue(notificationPayload)
+                    }
                 } catch (notifEx: Exception) {
                     Log.w("Plenxo", "Failed to queue FCM notification dispatch: ${notifEx.message}")
                 }

@@ -178,6 +178,7 @@ fun AuthScreen(
     // 4-Step Interactive Captcha Modal
     HumanVerificationCaptchaDialog(
         visible = showCaptchaDialog,
+        authViewModel = authViewModel,
         onDismiss = { showCaptchaDialog = false },
         onVerificationSuccess = {
             isCaptchaVerified = true

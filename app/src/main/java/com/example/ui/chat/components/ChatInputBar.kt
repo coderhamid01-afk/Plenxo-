@@ -202,29 +202,22 @@ fun ChatInputBar(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .shadow(
-                elevation = animatedElevation,
+                elevation = 6.dp,
                 shape = RoundedCornerShape(28.dp),
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-                spotColor = primaryColor.copy(alpha = 0.45f)
+                ambientColor = Color.Black.copy(alpha = 0.45f),
+                spotColor = Color.Black.copy(alpha = 0.45f)
             )
             .clip(RoundedCornerShape(28.dp))
-            .then(
-                if (isAndroid12Plus) {
-                    Modifier.blur(20.dp)
-                } else {
-                    Modifier
-                }
-            )
-            .background(glassContainerColor)
+            .background(Color(0xFF1E293B))
             .border(
                 width = 1.dp,
-                brush = glassBorderBrush,
+                color = if (isFocused) Color(0xFF22C55E).copy(alpha = 0.60f) else Color(0xFF334155),
                 shape = RoundedCornerShape(28.dp)
             )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         if (isRecording) {
             Row(
@@ -350,7 +343,17 @@ fun ChatInputBar(
                 TextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Message...", color = Color.White.copy(alpha = 0.60f)) },
+                    placeholder = {
+                        Text(
+                            text = "Type a message...",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 15.sp
+                        )
+                    },
+                    textStyle = LocalTextStyle.current.copy(
+                        color = Color.White,
+                        fontSize = 15.sp
+                    ),
                     modifier = Modifier
                         .weight(1f)
                         .onFocusChanged { focusState ->
@@ -363,9 +366,11 @@ fun ChatInputBar(
                         disabledContainerColor = Color.Transparent,
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
+                        focusedPlaceholderColor = Color(0xFF94A3B8),
+                        unfocusedPlaceholderColor = Color(0xFF94A3B8),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = primaryColor
+                        cursorColor = Color(0xFF22C55E)
                     ),
                     shape = RoundedCornerShape(24.dp),
                     maxLines = 4

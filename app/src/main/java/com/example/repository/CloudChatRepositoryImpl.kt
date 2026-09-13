@@ -46,7 +46,11 @@ class CloudChatRepositoryImpl(private val context: Context) : ChatDataRepository
                 "mediaUrl" to message.mediaUrl,
                 "timestamp" to message.timestamp,
                 "status" to message.status,
-                "expiresAt" to message.expiresAt
+                "expiresAt" to message.expiresAt,
+                "replyToMessageId" to message.replyToMessageId,
+                "isEdited" to message.isEdited,
+                "senderActiveFontId" to message.senderActiveFontId,
+                "createdAt" to message.timestamp
             )
 
             firestore.collection("messages").document(message.messageId).set(messageData, SetOptions.merge()).await()
@@ -70,15 +74,35 @@ class CloudChatRepositoryImpl(private val context: Context) : ChatDataRepository
                 else -> if (message.messageText.startsWith("http")) "📄 Document Attachment" else message.messageText
             }
 
-            val chatUpdate = mapOf(
+            val participantsList = if (message.senderId.isNotBlank() && message.receiverId.isNotBlank()) {
+                listOf(message.senderId, message.receiverId)
+            } else if (message.chatId.contains("_")) {
+                message.chatId.split("_")
+            } else {
+                emptyList()
+            }
+            val participantsMap = participantsList.associateWith { true }
+
+            val chatUpdate = mutableMapOf<String, Any>(
                 "chatId" to message.chatId,
                 "lastMessage" to lastMessageSummary,
                 "lastMessageTimestamp" to message.timestamp,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
-            firestore.collection("chats").document(message.chatId)
-                .set(chatUpdate, SetOptions.merge())
-                .await()
+            if (participantsList.isNotEmpty()) {
+                chatUpdate["participantUids"] = participantsList
+                chatUpdate["participants"] = participantsMap
+                chatUpdate["user1Id"] = participantsList[0]
+                if (participantsList.size > 1) {
+                    chatUpdate["user2Id"] = participantsList[1]
+                }
+            }
+
+            if (message.chatId.isNotBlank()) {
+                firestore.collection("chats").document(message.chatId)
+                    .set(chatUpdate, SetOptions.merge())
+                    .await()
+            }
         } catch (e: Exception) {
             Log.e("CloudChatRepo", "Failed to save message in Firestore: ${e.message}", e)
             throw e
@@ -297,31 +321,48 @@ class CloudChatRepositoryImpl(private val context: Context) : ChatDataRepository
 
         val query = firestore.collection("messages")
             .whereEqualTo("chatId", chatId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .limit(limit.toLong())
 
         val listener = query.addSnapshotListener { snapshot, error ->
-            if (error != null || snapshot == null) {
-                Log.e("CloudChatRepo", "Error listening for messages in chat $chatId: ${error?.message}")
+            if (error != null) {
+                Log.e("CloudChatRepo", "Error listening for messages in chat $chatId: ${error.message}", error)
+                return@addSnapshotListener
+            }
+            if (snapshot == null) {
                 trySend(emptyList())
                 return@addSnapshotListener
             }
 
             val messages = snapshot.documents.mapNotNull { doc ->
                 val data = doc.data ?: return@mapNotNull null
+                val msgId = (data["messageId"] as? String) ?: doc.id
+                val sId = (data["senderId"] as? String) ?: (data["senderUid"] as? String) ?: ""
+                val rId = (data["receiverId"] as? String) ?: (data["receiverUid"] as? String) ?: ""
+                val msgText = (data["messageText"] as? String) ?: (data["text"] as? String) ?: ""
+                val msgType = (data["messageType"] as? String) ?: (data["type"] as? String) ?: "TEXT"
+                val mUrl = (data["mediaUrl"] as? String) ?: ""
+                val ts = (data["timestamp"] as? Long) ?: (data["createdAt"] as? Long) ?: System.currentTimeMillis()
+                val st = (data["status"] as? String) ?: "SENT"
+                val exp = (data["expiresAt"] as? Long)
+                val replyTo = (data["replyToMessageId"] as? String)
+                val isEd = (data["isEdited"] as? Boolean) ?: false
+                val font = (data["senderActiveFontId"] as? String) ?: "DEFAULT"
+
                 MessagePayload(
-                    messageId = (data["messageId"] as? String) ?: doc.id,
+                    messageId = msgId,
                     chatId = (data["chatId"] as? String) ?: chatId,
-                    senderId = (data["senderId"] as? String) ?: "",
-                    receiverId = (data["receiverId"] as? String) ?: "",
-                    messageText = (data["messageText"] as? String) ?: "",
-                    messageType = (data["messageType"] as? String) ?: "TEXT",
-                    mediaUrl = (data["mediaUrl"] as? String) ?: "",
-                    timestamp = (data["timestamp"] as? Long) ?: System.currentTimeMillis(),
-                    status = (data["status"] as? String) ?: "SENT",
-                    expiresAt = (data["expiresAt"] as? Long)
+                    senderId = sId,
+                    receiverId = rId,
+                    messageText = msgText,
+                    messageType = msgType,
+                    mediaUrl = mUrl,
+                    timestamp = ts,
+                    status = st,
+                    expiresAt = exp,
+                    replyToMessageId = replyTo,
+                    isEdited = isEd,
+                    senderActiveFontId = font
                 )
-            }.reversed()
+            }.sortedBy { it.timestamp }
 
             trySend(messages)
         }
@@ -337,26 +378,40 @@ class CloudChatRepositoryImpl(private val context: Context) : ChatDataRepository
         return try {
             val snapshot = firestore.collection("messages")
                 .whereEqualTo("chatId", chatId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(limit.toLong())
                 .get()
                 .await()
 
             snapshot.documents.mapNotNull { doc ->
                 val data = doc.data ?: return@mapNotNull null
+                val msgId = (data["messageId"] as? String) ?: doc.id
+                val sId = (data["senderId"] as? String) ?: (data["senderUid"] as? String) ?: ""
+                val rId = (data["receiverId"] as? String) ?: (data["receiverUid"] as? String) ?: ""
+                val msgText = (data["messageText"] as? String) ?: (data["text"] as? String) ?: ""
+                val msgType = (data["messageType"] as? String) ?: (data["type"] as? String) ?: "TEXT"
+                val mUrl = (data["mediaUrl"] as? String) ?: ""
+                val ts = (data["timestamp"] as? Long) ?: (data["createdAt"] as? Long) ?: System.currentTimeMillis()
+                val st = (data["status"] as? String) ?: "SENT"
+                val exp = (data["expiresAt"] as? Long)
+                val replyTo = (data["replyToMessageId"] as? String)
+                val isEd = (data["isEdited"] as? Boolean) ?: false
+                val font = (data["senderActiveFontId"] as? String) ?: "DEFAULT"
+
                 MessagePayload(
-                    messageId = (data["messageId"] as? String) ?: doc.id,
+                    messageId = msgId,
                     chatId = (data["chatId"] as? String) ?: chatId,
-                    senderId = (data["senderId"] as? String) ?: "",
-                    receiverId = (data["receiverId"] as? String) ?: "",
-                    messageText = (data["messageText"] as? String) ?: "",
-                    messageType = (data["messageType"] as? String) ?: "TEXT",
-                    mediaUrl = (data["mediaUrl"] as? String) ?: "",
-                    timestamp = (data["timestamp"] as? Long) ?: System.currentTimeMillis(),
-                    status = (data["status"] as? String) ?: "SENT",
-                    expiresAt = (data["expiresAt"] as? Long)
+                    senderId = sId,
+                    receiverId = rId,
+                    messageText = msgText,
+                    messageType = msgType,
+                    mediaUrl = mUrl,
+                    timestamp = ts,
+                    status = st,
+                    expiresAt = exp,
+                    replyToMessageId = replyTo,
+                    isEdited = isEd,
+                    senderActiveFontId = font
                 )
-            }.reversed()
+            }.sortedBy { it.timestamp }
         } catch (e: Exception) {
             Log.e("CloudChatRepo", "Failed to fetch more messages for $chatId: ${e.message}")
             emptyList()

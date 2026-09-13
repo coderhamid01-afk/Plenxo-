@@ -6,6 +6,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.model.CaptchaShapeItem
+import com.example.model.CaptchaShapeType
+import com.example.model.SequenceCaptchaGenerator
 import com.example.model.UserProfile
 import com.example.model.toUserModel
 import com.example.network.CatboxUploader
@@ -147,6 +150,56 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun markLoginCaptchaVerified() {
         loginCaptchaInput.value = expectedLoginCaptcha
+    }
+
+    // Step 3: Dynamic Sequence Captcha State & Secure Validation
+    val sequenceCaptchaTarget = MutableStateFlow<List<CaptchaShapeItem>>(emptyList())
+    val sequenceCaptchaGrid = MutableStateFlow<List<CaptchaShapeItem>>(emptyList())
+    val sequenceCaptchaSelectedIds = MutableStateFlow<List<String>>(emptyList())
+    val isSequenceCaptchaSuccess = MutableStateFlow(false)
+    val isSequenceCaptchaError = MutableStateFlow(false)
+
+    fun generateSequenceCaptchaSession() {
+        val (target, grid) = SequenceCaptchaGenerator.generateSession(minLen = 3, maxLen = 5)
+        sequenceCaptchaTarget.value = target
+        sequenceCaptchaGrid.value = grid
+        sequenceCaptchaSelectedIds.value = emptyList()
+        isSequenceCaptchaSuccess.value = false
+        isSequenceCaptchaError.value = false
+    }
+
+    fun validateSequenceShapeTap(tappedItem: CaptchaShapeItem): Boolean {
+        if (isSequenceCaptchaSuccess.value) return true
+        val target = sequenceCaptchaTarget.value
+        val currentTaps = sequenceCaptchaSelectedIds.value
+        val expectedIndex = currentTaps.size
+
+        if (expectedIndex < target.size) {
+            val expected = target[expectedIndex]
+            val isMatching = tappedItem.id == expected.id ||
+                    (tappedItem.shapeType == expected.shapeType && tappedItem.colorName == expected.colorName)
+
+            if (isMatching) {
+                val updatedTaps = currentTaps + tappedItem.id
+                sequenceCaptchaSelectedIds.value = updatedTaps
+                isSequenceCaptchaError.value = false
+
+                if (updatedTaps.size == target.size) {
+                    isSequenceCaptchaSuccess.value = true
+                    return true
+                }
+                return false
+            } else {
+                isSequenceCaptchaError.value = true
+                sequenceCaptchaSelectedIds.value = emptyList()
+                return false
+            }
+        }
+        return false
+    }
+
+    fun clearSequenceCaptchaError() {
+        isSequenceCaptchaError.value = false
     }
 
     // Real-time DoB Age Calculation
