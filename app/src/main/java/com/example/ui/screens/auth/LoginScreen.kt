@@ -14,6 +14,7 @@ fun LoginScreen(
     onNavigateToSignUp: () -> Unit,
     onLoginSuccess: (UserProfile) -> Unit,
     onSignUpSuccess: () -> Unit = onNavigateToSignUp,
+    onNavigateToOtp: () -> Unit = onSignUpSuccess,
     primaryColor: Color = Color(0xFF059669)
 ) {
     AuthScreen(
@@ -21,6 +22,7 @@ fun LoginScreen(
         initialMode = AuthMode.LOGIN,
         onLoginSuccess = onLoginSuccess,
         onSignUpSuccess = onSignUpSuccess,
+        onNavigateToOtp = onNavigateToOtp,
         onNavigateToOther = onNavigateToSignUp,
         primaryColor = primaryColor
     )

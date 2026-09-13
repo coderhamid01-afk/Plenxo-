@@ -175,8 +175,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="plenxo-afb01.web.app" />
-                <data android:scheme="http" android:host="plenxo-afb01.web.app" />
+                <data android:scheme="https" android:host="plenxo-pro-max.web.app" />
+                <data android:scheme="http" android:host="plenxo-pro-max.web.app" />
             </intent-filter>
             <!-- Auth Session Deep Link Scheme -->
             <intent-filter>
@@ -189,7 +189,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.coderhamid.plenxo.me.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

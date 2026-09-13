@@ -9,6 +9,7 @@ import com.example.ui.theme.PlenxoSpacing
 import com.example.ui.theme.PlenxoTypography
 import com.example.ui.components.PlenxoAdvancedLoader
 import android.net.Uri
+import android.util.Log
 import android.app.Application
 import android.widget.Toast
 import android.Manifest
@@ -228,25 +229,50 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
                     },
                     onSignUpSuccess = {
                         com.example.util.SessionManager.saveOnboardingStage(context, com.example.util.SessionManager.STAGE_OTP_PENDING)
+                        Log.d("PlenxoAuthFlow", "OTP_SCREEN_NAVIGATION from signup in LoginScreen")
+                        viewModel.navigateToScreen(PlenxoScreen.OTP_VERIFICATION)
+                    },
+                    onNavigateToOtp = {
+                        com.example.util.SessionManager.saveOnboardingStage(context, com.example.util.SessionManager.STAGE_OTP_PENDING)
+                        Log.d("PlenxoAuthFlow", "OTP_SCREEN_NAVIGATION from onNavigateToOtp")
                         viewModel.navigateToScreen(PlenxoScreen.OTP_VERIFICATION)
                     },
                     onLoginSuccess = { userProfile ->
-                        val isCompleted = userProfile.isProfileCompleted ||
+                        val stage = com.example.util.SessionManager.getSavedOnboardingStage(context)
+                        if (stage == com.example.util.SessionManager.STAGE_OTP_PENDING) {
+                            Log.d("PlenxoAuthFlow", "onLoginSuccess guard: STAGE_OTP_PENDING detected -> redirecting to OTP")
+                            viewModel.navigateToScreen(PlenxoScreen.OTP_VERIFICATION)
+                            return@LoginScreen
+                        }
+                        val isCompleted = stage == com.example.util.SessionManager.STAGE_COMPLETED ||
+                            userProfile.isProfileCompleted ||
                             (userProfile.displayName.isNotBlank() && userProfile.displayName != "User") ||
                             (userProfile.name.isNotBlank() && userProfile.name != "User") ||
                             com.example.util.SessionManager.isOnboardingCompleted(context)
                         if (isCompleted) {
                             com.example.util.SessionManager.saveOnboardingStage(context, com.example.util.SessionManager.STAGE_COMPLETED)
                             com.example.util.SessionManager.saveOnboardingCompleted(context, true)
-                        } else {
-                            com.example.util.SessionManager.saveOnboardingStage(context, com.example.util.SessionManager.STAGE_PROFILE_SETUP_PENDING)
-                            com.example.util.SessionManager.saveOnboardingCompleted(context, false)
-                        }
-                        viewModel.hydrateUserProfile(userProfile)
-                        if (isCompleted) {
+                            viewModel.hydrateUserProfile(userProfile)
+                            Log.d("PlenxoAuthFlow", "HOME_NAVIGATION from login success")
                             viewModel.navigateToScreen(PlenxoScreen.HOME, addToHistory = false, clearHistory = true)
                         } else {
-                            viewModel.navigateToScreen(PlenxoScreen.PROFILE_SETUP, addToHistory = false, clearHistory = true)
+                            when (stage) {
+                                com.example.util.SessionManager.STAGE_WELCOME_PENDING -> {
+                                    Log.d("PlenxoAuthFlow", "WELCOME_NAVIGATION from login success")
+                                    viewModel.navigateToScreen(PlenxoScreen.WELCOME, addToHistory = false, clearHistory = true)
+                                }
+                                com.example.util.SessionManager.STAGE_REVEAL_PENDING -> {
+                                    Log.d("PlenxoAuthFlow", "REVEAL_NAVIGATION from login success")
+                                    viewModel.navigateToScreen(PlenxoScreen.PLENXO_ID_REVEAL, addToHistory = false, clearHistory = true)
+                                }
+                                else -> {
+                                    com.example.util.SessionManager.saveOnboardingStage(context, com.example.util.SessionManager.STAGE_PROFILE_SETUP_PENDING)
+                                    com.example.util.SessionManager.saveOnboardingCompleted(context, false)
+                                    viewModel.hydrateUserProfile(userProfile)
+                                    Log.d("PlenxoAuthFlow", "PROFILE_SETUP_NAVIGATION from login success")
+                                    viewModel.navigateToScreen(PlenxoScreen.PROFILE_SETUP, addToHistory = false, clearHistory = true)
+                                }
+                            }
                         }
                     },
                     primaryColor = primaryColor

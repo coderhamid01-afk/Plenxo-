@@ -21,6 +21,10 @@ class UserSearchViewModel @JvmOverloads constructor(
     private val userRepository: UserRepository = UserRepositoryImpl()
 ) : AndroidViewModel(application) {
 
+    companion object {
+        private const val TAG_SEARCH = "PLENXO_SEARCH"
+    }
+
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -170,12 +174,14 @@ class UserSearchViewModel @JvmOverloads constructor(
                 _allUsers.value = userList
                 _allUserModels.value = modelList
 
+                Log.d(TAG_SEARCH, "Operation: LOAD_INITIAL_USERS, path: users, count: ${userList.size}, status: SUCCESS")
+
                 if (_searchQuery.value.isBlank()) {
                     _searchResults.value = userList
                     _userModelResults.value = modelList
                 }
             } catch (e: Exception) {
-                Log.e("UserSearchViewModel", "Error loading initial users: ${e.message}", e)
+                Log.e(TAG_SEARCH, "Operation: LOAD_INITIAL_USERS, path: users, status: FAILURE, error: ${e.message}", e)
                 _searchError.value = "Failed to load users: ${e.localizedMessage}"
             } finally {
                 _isSearching.value = false
@@ -419,8 +425,9 @@ class UserSearchViewModel @JvmOverloads constructor(
 
                 _searchResults.value = distinctResults
                 _userModelResults.value = distinctModels
+                Log.d(TAG_SEARCH, "Operation: SEARCH_BY_PX_ID, query: $normalized, matches: ${distinctResults.size}, status: SUCCESS")
             } catch (e: Exception) {
-                Log.e("UserSearchViewModel", "Search error: ${e.message}", e)
+                Log.e(TAG_SEARCH, "Operation: SEARCH_BY_PX_ID, query: $normalized, status: FAILURE, error: ${e.message}", e)
                 _searchError.value = "Search failed: ${e.localizedMessage}"
             } finally {
                 _isSearching.value = false

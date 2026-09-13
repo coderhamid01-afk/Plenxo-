@@ -87,6 +87,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.util.Log
 import androidx.compose.ui.unit.sp
 import com.example.model.UserProfile
 import com.example.ui.components.AnimatedAuthBackground
@@ -113,6 +114,7 @@ fun AuthScreen(
     initialMode: AuthMode = AuthMode.LOGIN,
     onLoginSuccess: (UserProfile) -> Unit,
     onSignUpSuccess: () -> Unit,
+    onNavigateToOtp: () -> Unit = onSignUpSuccess,
     onNavigateToOther: (() -> Unit)? = null,
     primaryColor: Color = Color(0xFF059669)
 ) {
@@ -161,6 +163,15 @@ fun AuthScreen(
         if (signUpSuccess) {
             onSignUpSuccess()
             authViewModel.signUpSuccess.value = false
+        }
+    }
+
+    val requiresOtp by authViewModel.requiresOtp.collectAsState()
+    LaunchedEffect(requiresOtp) {
+        if (requiresOtp) {
+            Log.d("PlenxoAuthFlow", "requiresOtp triggered in AuthScreen -> navigating to OTP")
+            onNavigateToOtp()
+            authViewModel.requiresOtp.value = false
         }
     }
 
@@ -615,7 +626,10 @@ fun AuthScreen(
                                 if (!isCaptchaVerified) {
                                     showCaptchaDialog = true
                                 } else {
-                                    authViewModel.performLogin(onSuccess = onLoginSuccess)
+                                    authViewModel.performLogin(
+                                        onSuccess = onLoginSuccess,
+                                        onNavigateToOtp = onNavigateToOtp
+                                    )
                                 }
                             } else {
                                 authViewModel.signUpError.value = null

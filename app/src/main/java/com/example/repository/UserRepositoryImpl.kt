@@ -66,71 +66,20 @@ class UserRepositoryImpl : UserRepository {
 
     override suspend fun createUserProfile(uid: String, email: String, name: String?, plenxoId: String?): Boolean {
         if (uid.isBlank()) return false
-
-        // Check if user document already exists before attempting creation
-        val userDocRef = firestore.collection("users").document(uid)
-        val existingSnap = try { getDocumentServerFirst(userDocRef, timeoutMs = 6000L) } catch (e: Exception) { null }
-
-        if (existingSnap != null && existingSnap.exists()) {
-            val existingDisplayName = existingSnap.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
-                ?: existingSnap.getString("name")?.takeIf { it.isNotBlank() && it != "User" }
-            if (!existingDisplayName.isNullOrBlank()) {
-                Log.d("UserRepositoryImpl", "User $uid already exists with profile ($existingDisplayName). Preserving existing profile.")
-                return true
-            }
-        }
-
-        val now = System.currentTimeMillis()
-        val resolvedName = name?.takeIf { it.isNotBlank() && it != "User" } 
-            ?: existingSnap?.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
-            ?: existingSnap?.getString("name")?.takeIf { it.isNotBlank() && it != "User" }
-            ?: email.substringBefore("@").ifBlank { "User" }
-
-        val finalPxId = plenxoId?.takeIf { it.startsWith("PX-") } 
-            ?: existingSnap?.getString("plenxoId")?.takeIf { it.startsWith("PX-") }
-            ?: com.example.model.resolveOrCreatePlenxoId(uid, firestore)
-        val numericCode = finalPxId.removePrefix("PX-")
-
-        val userData = mutableMapOf<String, Any?>(
-            "uid" to uid,
-            "id" to uid,
-            "email" to email,
-            "displayName" to resolvedName,
-            "display_name" to resolvedName,
-            "name" to resolvedName,
-            "current_name" to resolvedName,
-            "plenxoId" to finalPxId,
-            "plenxo_id" to finalPxId,
-            "userCode" to numericCode,
-            "user_code" to numericCode,
-            "px_id" to finalPxId,
-            "px_code" to numericCode,
-            "bio" to "Hey there! I am using Plenxo.",
-            "statusMessage" to "Hey there! I am using Plenxo.",
-            "profilePicUrl" to "",
-            "avatar_url" to "",
-            "photoUrl" to "",
-            "status" to "online",
-            "lastSeen" to now,
-            "createdAt" to now,
-            "updatedAt" to FieldValue.serverTimestamp(),
-            "isProfileCompleted" to false,
-            "is_profile_completed" to false,
-            "isProfileSetupCompleted" to false,
-            "profileSetupCompleted" to false
+        Log.d("PlenxoUserRepository", "createUserProfile called for UID=$uid, email=$email, requestedPxId=$plenxoId")
+        val result = FirestoreUserBootstrapper.initializeUser(
+            uid = uid,
+            email = email,
+            name = name,
+            plenxoId = plenxoId,
+            firestore = firestore
         )
-
-        return try {
-            userDocRef.set(userData, SetOptions.merge()).await()
-            Log.d("UserRepositoryImpl", "User profile created successfully in Firestore /users/$uid with PX ID: $finalPxId")
-            true
-        } catch (fsEx: FirebaseFirestoreException) {
-            Log.e("UserRepositoryImpl", "FirebaseFirestoreException creating profile for $uid [Code: ${fsEx.code}]: ${fsEx.message}", fsEx)
-            false
-        } catch (e: Exception) {
-            Log.e("UserRepositoryImpl", "Failed creating user profile for $uid: ${e.message}", e)
-            false
+        if (!result.success) {
+            Log.e("PlenxoUserRepository", "createUserProfile failed for UID=$uid: ${result.errorMessage}")
+        } else {
+            Log.d("PlenxoUserRepository", "createUserProfile succeeded for UID=$uid with Plenxo ID: ${result.plenxoId}")
         }
+        return result.success
     }
 
     override suspend fun syncUserDataOnAuth(
@@ -144,10 +93,17 @@ class UserRepositoryImpl : UserRepository {
         if (uid.isBlank()) return false
 
         val userDocRef = firestore.collection("users").document(uid)
-        val userSnap = try { getDocumentServerFirst(userDocRef, timeoutMs = 6000L) } catch (e: Exception) { null }
+        val userSnap = try {
+            kotlinx.coroutines.withTimeoutOrNull(3500L) {
+                userDocRef.get().await()
+            }
+        } catch (e: Exception) {
+            Log.w("PlenxoUserRepository", "syncUserDataOnAuth read warning for $uid: ${e.message}")
+            null
+        }
 
         if (userSnap != null && userSnap.exists()) {
-            Log.d("UserRepositoryImpl", "Returning user $uid already exists. Skipping profile overwrite during auth sync.")
+            Log.d("PlenxoUserRepository", "User $uid exists. Updating status/fcmToken while preserving profile.")
             try {
                 val updates = mutableMapOf<String, Any>(
                     "status" to status,
@@ -158,7 +114,7 @@ class UserRepositoryImpl : UserRepository {
                 }
                 userDocRef.update(updates).await()
             } catch (e: Exception) {
-                Log.w("UserRepositoryImpl", "Non-profile update warning: ${e.message}")
+                Log.w("PlenxoUserRepository", "Non-profile update note: ${e.message}")
             }
             return true
         } else {

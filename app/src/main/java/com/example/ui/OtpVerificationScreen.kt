@@ -53,6 +53,7 @@ fun OtpVerificationScreen(
     val otpError by authViewModel.otpError.collectAsState()
     val isVerifying by authViewModel.isVerifyingOtp.collectAsState()
     val otpSuccess by authViewModel.otpSuccess.collectAsState()
+    val signUpEmail by authViewModel.signUpEmail.collectAsState()
 
     LaunchedEffect(otpSuccess) {
         if (otpSuccess) {
@@ -143,8 +144,9 @@ fun OtpVerificationScreen(
                         fontWeight = FontWeight.Black,
                         color = Color(0xFFF8FAFC)
                     )
+                    val emailText = if (signUpEmail.isNotBlank()) signUpEmail else "your registered email address"
                     Text(
-                        text = "We have sent a 6-digit secure code to your registered email address. Please enter it below to confirm your account.",
+                        text = "We have sent a 6-digit secure code to $emailText. Please enter it below to confirm your account.",
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
                         color = Color(0xFF94A3B8),

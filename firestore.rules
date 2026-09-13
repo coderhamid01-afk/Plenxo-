@@ -3,80 +3,147 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // Core authentication check
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    // User profile ownership check
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users public and private profiles
+    // ===============================================================
+    // 1. User Profiles (/users/{userId})
+    // ===============================================================
     match /users/{userId} {
+      // Authenticated users can read profiles for Plenxo ID search and chat
       allow read: if isAuthenticated();
-      allow create, update, delete: if isOwner(userId);
+      // Users can only create and modify their own profile
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
 
-      // Subcollections under users (e.g. friend_requests, active_sessions, devices)
-      match /friend_requests/{senderId} {
-        allow read, write: if isAuthenticated() && (request.auth.uid == userId || request.auth.uid == senderId);
+      // User subcollections (active_sessions, call_history, blocked, etc.)
+      match /call_history/{callId} {
+        allow read, write: if isOwner(userId);
       }
-
+      match /active_sessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /blocked/{blockedId} {
+        allow read, write: if isOwner(userId);
+      }
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // Users data parallel collection
+    // ===============================================================
+    // 2. Parallel User Data (/users_data/{userId})
+    // ===============================================================
     match /users_data/{userId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
       
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // Unified Presence collection
+    // ===============================================================
+    // 3. User Presence (/presence/{userId} & /users_presence/{userId})
+    // ===============================================================
     match /presence/{userId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
-    // Backward-compatible users_presence collection
     match /users_presence/{userId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
-    // Top-level Active Sessions (SecurityViewModel)
-    match /active_sessions/{sessionId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
-    }
-
-    // Friend Requests (Global collection)
+    // ===============================================================
+    // 4. Friend Requests (/friend_requests/{requestId})
+    // ===============================================================
     match /friend_requests/{requestId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && 
-        (request.resource.data.senderUid == request.auth.uid || request.resource.data.requestFrom == request.auth.uid);
-      allow update, delete: if isAuthenticated() && 
-        (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid ||
-         resource.data.requestFrom == request.auth.uid || resource.data.requestTo == request.auth.uid);
+      allow create: if isAuthenticated() && (
+        request.resource.data.senderUid == request.auth.uid ||
+        request.resource.data.requestFrom == request.auth.uid ||
+        request.resource.data.senderId == request.auth.uid
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.receiverUid == request.auth.uid ||
+        resource.data.requestFrom == request.auth.uid ||
+        resource.data.requestTo == request.auth.uid ||
+        resource.data.senderId == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid
+      );
     }
 
-    // Chat Requests
+    // ===============================================================
+    // 5. Chat Requests (/chat_requests/{requestId})
+    // ===============================================================
     match /chat_requests/{requestId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && 
-        (request.resource.data.senderUid == request.auth.uid || request.resource.data.requestFrom == request.auth.uid);
-      allow update, delete: if isAuthenticated() && 
-        (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid ||
-         resource.data.requestFrom == request.auth.uid || resource.data.requestTo == request.auth.uid);
+      allow create: if isAuthenticated() && (
+        request.resource.data.senderUid == request.auth.uid ||
+        request.resource.data.requestFrom == request.auth.uid ||
+        request.resource.data.senderId == request.auth.uid
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.receiverUid == request.auth.uid ||
+        resource.data.requestFrom == request.auth.uid ||
+        resource.data.requestTo == request.auth.uid ||
+        resource.data.senderId == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid
+      );
     }
 
-    // Chats and subcollections (messages, participants, typing, media)
+    // ===============================================================
+    // 6. Direct Messages (/messages/{messageId} & /message/{messageId})
+    // ===============================================================
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.senderId == request.auth.uid ||
+        request.resource.data.senderUid == request.auth.uid ||
+        request.resource.data.from == request.auth.uid ||
+        !('senderId' in request.resource.data)
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+    }
+
+    match /message/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.senderId == request.auth.uid ||
+        request.resource.data.senderUid == request.auth.uid ||
+        request.resource.data.from == request.auth.uid ||
+        !('senderId' in request.resource.data)
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+    }
+
+    // ===============================================================
+    // 7. Chats and Subcollections (/chats/{chatId})
+    // ===============================================================
     match /chats/{chatId} {
       allow read, write: if isAuthenticated();
       
@@ -85,34 +152,9 @@ service cloud.firestore {
       }
     }
 
-    // Messages collection
-    match /messages/{messageId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // WebRTC Calls & ICE Candidates signaling
-    match /calls/{callId} {
-      allow read, write: if isAuthenticated();
-
-      match /ice_candidates/{candidateId} {
-        allow read, write: if isAuthenticated();
-      }
-      
-      match /{subcollection=**} {
-        allow read, write: if isAuthenticated();
-      }
-    }
-
-    // Call Logs & History
-    match /call_logs/{callLogId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /call_history/{callHistoryId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Contacts & Relationships
+    // ===============================================================
+    // 8. Contacts & Relationships
+    // ===============================================================
     match /contacts/{contactId} {
       allow read, write: if isAuthenticated();
     }
@@ -129,24 +171,56 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // Status Updates / Stories
-    match /status/{statusId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+    // ===============================================================
+    // 9. WebRTC Calls Signaling (/calls/{callId})
+    // ===============================================================
+    match /calls/{callId} {
+      allow read, write: if isAuthenticated();
+
+      match /{subcollection=**} {
+        allow read, write: if isAuthenticated();
+      }
     }
 
-    // Security & Cryptographic Keys
+    match /call_logs/{callLogId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ===============================================================
+    // 10. Status / Stories (/status/{statusId})
+    // ===============================================================
+    match /status/{statusId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid
+      );
+    }
+
+    // ===============================================================
+    // 11. Security, Sessions & Audit History
+    // ===============================================================
+    match /active_sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid
+      );
+    }
+
     match /security_keys/{keyId} {
       allow read, write: if isAuthenticated();
     }
 
     match /archived_keys/{keyId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // User Profile History & Sharing
-    match /profile_shares/{shareId} {
       allow read, write: if isAuthenticated();
     }
 
@@ -162,21 +236,25 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // App Invitations
-    match /invitations/{invitationId} {
+    match /profile_shares/{shareId} {
       allow read, write: if isAuthenticated();
     }
 
-    // Bug Reports & Feedback
     match /bug_reports/{reportId} {
       allow create: if isAuthenticated();
       allow read, update, delete: if isAuthenticated();
     }
 
-    // App Configuration & Metadata
+    // ===============================================================
+    // 12. System Metadata & Bootstrap (/ _meta/{docId})
+    // ===============================================================
+    match /_meta/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /app_config/{configId} {
       allow read: if isAuthenticated();
-      allow write: if false; // Read-only for clients, managed via Firebase Console / Admin SDK
+      allow write: if false; // Admin managed
     }
   }
 }

@@ -165,114 +165,40 @@ suspend fun getOrCreatePermanentPlenxoId(
 
     val userDocRef = firestore.collection("users").document(uid)
 
-    var existingPxId: String? = null
-
-    // Authoritative Step 1: Read Firestore /users/{uid} (Server-first with cache fallback)
-    for (attempt in 1..3) {
-        try {
-            val userSnap = getDocumentServerFirst(userDocRef, timeoutMs = 3000L)
-            if (userSnap.exists()) {
-                existingPxId = userSnap.getString("plenxoId")
-                    ?: userSnap.getString("userCode")
-                break
-            } else {
-                break
-            }
-        } catch (e: Exception) {
-            Log.w("PlenxoIdResolver", "Attempt $attempt reading Plenxo ID for $uid: ${e.message}")
-            if (attempt < 3) {
-                kotlinx.coroutines.delay(200)
-            }
+    val existingSnap = try {
+        kotlinx.coroutines.withTimeoutOrNull(3000L) {
+            userDocRef.get().await()
         }
+    } catch (e: Exception) {
+        Log.w("PlenxoIdResolver", "Warning reading Plenxo ID for $uid: ${e.message}")
+        null
     }
 
-    // Check if valid existing ID is found and normalize
-    val cleanId = existingPxId?.trim()
-    val normalized = when {
-        cleanId == null -> null
-        cleanId.matches(Regex("^PX-\\d{6}$")) -> cleanId
-        cleanId.matches(Regex("^\\d{6}$")) -> "PX-$cleanId"
-        cleanId.isNotBlank() && cleanId.startsWith("PX-") -> cleanId
-        else -> null
-    }
+    val existingPxId = existingSnap?.getString("plenxoId") ?: existingSnap?.getString("userCode")
 
-    if (normalized != null) {
-        // Local persistence sync
-        try {
-            val appCtx = com.example.PlenxoApplication.instance
-            val currentLocal = com.example.util.SessionManager.getUserProfileLocally(appCtx)
-            com.example.util.SessionManager.saveUserProfileLocally(
-                appCtx,
-                plenxoId = normalized,
-                displayName = currentLocal.displayName,
-                bio = currentLocal.bio,
-                profilePicUrl = currentLocal.profilePicUrl,
-                dob = currentLocal.dob,
-                gender = currentLocal.gender,
-                age = currentLocal.age
-            )
-        } catch (_: Exception) {}
-
-        // If cleanId is already properly formatted as PX-XXXXXX, return directly without writing to Firestore
-        if (cleanId != null && cleanId.matches(Regex("^PX-\\d{6}$"))) {
-            return normalized
-        }
-
-        val numericCode = normalized.removePrefix("PX-")
-        val updateMap = mapOf(
-            "plenxoId" to normalized,
-            "userCode" to numericCode
-        )
-        try {
-            userDocRef.set(updateMap, com.google.firebase.firestore.SetOptions.merge()).await()
-        } catch (e: Exception) {
-            Log.w("PlenxoIdResolver", "Warning: Failed to sync normalized Plenxo ID $normalized: ${e.message}")
-        }
-        return normalized
-    }
-
-    // Authoritative Step 2: Only if Firestore document has NO Plenxo ID, use local ID or deterministic ID based on UID
-    val deterministicCode = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
-    val fallbackPxId = "PX-$deterministicCode"
-
-    val appCtx = com.example.PlenxoApplication.instance
-    val localPx = com.example.util.SessionManager.getLocalPlenxoId(appCtx).trim()
-    val cleanLocalPx = localPx.removePrefix("@").removePrefix("#")
-    val formattedLocalPx = when {
-        cleanLocalPx.startsWith("PX-", ignoreCase = true) -> "PX-${cleanLocalPx.substring(3)}"
-        cleanLocalPx.matches(Regex("^\\d{6}$")) -> "PX-$cleanLocalPx"
-        else -> ""
-    }
-
-    val newPlenxoId = if (formattedLocalPx.isNotBlank()) {
-        formattedLocalPx
-    } else {
-        fallbackPxId
-    }
-
-    val numericCode = newPlenxoId.removePrefix("PX-")
-    val newMap = mapOf(
-        "plenxoId" to newPlenxoId,
-        "userCode" to numericCode
+    val finalPxId = com.example.repository.FirestoreUserBootstrapper.resolveAuthoritativePlenxoId(
+        uid = uid,
+        existingPxId = existingPxId,
+        firestore = firestore
     )
 
     try {
-        userDocRef.set(newMap, com.google.firebase.firestore.SetOptions.merge()).await()
         val appCtx = com.example.PlenxoApplication.instance
         val currentLocal = com.example.util.SessionManager.getUserProfileLocally(appCtx)
         com.example.util.SessionManager.saveUserProfileLocally(
             appCtx,
-            plenxoId = newPlenxoId,
+            plenxoId = finalPxId,
             displayName = currentLocal.displayName,
             bio = currentLocal.bio,
-            profilePicUrl = currentLocal.profilePicUrl
+            profilePicUrl = currentLocal.profilePicUrl,
+            dob = currentLocal.dob,
+            gender = currentLocal.gender,
+            age = currentLocal.age
         )
-    } catch (e: Exception) {
-        Log.w("PlenxoIdResolver", "Warning: Failed write for new ID $newPlenxoId: ${e.message}")
-    }
+    } catch (_: Exception) {}
 
-    Log.d("PlenxoIdResolver", "Resolved/created permanent Plenxo ID: $newPlenxoId for UID: $uid")
-    return newPlenxoId
+    Log.d("PlenxoIdResolver", "Resolved permanent Plenxo ID: $finalPxId for UID: $uid")
+    return finalPxId
 }
 
 /**

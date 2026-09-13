@@ -11,6 +11,7 @@ import com.example.model.toUserModel
 import com.example.network.CatboxUploader
 import com.example.network.OtpApiService
 import com.example.network.SendOtpRequest
+import com.example.repository.FirestoreUserBootstrapper
 import com.example.repository.UserRepository
 import com.example.repository.UserRepositoryImpl
 import com.example.util.SessionManager
@@ -40,6 +41,13 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val TAG_AUTH = "PLENXO_AUTH"
+        private const val TAG_OTP = "PLENXO_OTP"
+        private const val TAG_PROFILE = "PLENXO_PROFILE"
+        private const val TAG_FS = "PLENXO_FIRESTORE"
+    }
 
     private val auth: FirebaseAuth get() = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore get() = FirebaseFirestore.getInstance()
@@ -80,6 +88,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val otpError = MutableStateFlow<String?>(null)
     val isVerifyingOtp = MutableStateFlow(false)
     val otpSuccess = MutableStateFlow(false)
+    val requiresOtp = MutableStateFlow(false)
     private var timerJob: Job? = null
 
     // Profile Setup States
@@ -191,11 +200,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resendOtp() {
-        val mail = signUpEmail.value.trim()
+        val mail = signUpEmail.value.trim().ifEmpty {
+            auth.currentUser?.email
+                ?: SessionManager.getUserEmail(getApplication())
+                ?: SessionManager.getPendingOtp(getApplication())?.first
+                ?: loginEmail.value.trim()
+        }
+        if (mail.isBlank()) {
+            otpError.value = "Email address not found. Please log in again."
+            return
+        }
+        signUpEmail.value = mail
         val generated = Random.nextInt(100000, 1000000).toString()
         secretOtp = generated
         otpInput.value = ""
         otpError.value = null
+
+        SessionManager.savePendingOtp(getApplication(), mail, generated)
+        SessionManager.saveOnboardingStage(getApplication(), SessionManager.STAGE_OTP_PENDING)
+        Log.d("PlenxoAuthFlow", "RESEND_OTP initiated for $mail")
 
         viewModelScope.launch {
             try {
@@ -218,7 +241,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Resend OTP failed: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "Resend OTP failed: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(getApplication(), "Verification code: $generated", Toast.LENGTH_LONG).show()
                     startOtpTimer()
@@ -267,6 +290,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 // 1. Firebase Authentication: Create User Account with 15s timeout guard
+                Log.d("PlenxoSignup", "AUTH START for $mail")
                 val authResult = withTimeoutOrNull(15000L) {
                     auth.createUserWithEmailAndPassword(mail, pwd).await()
                 } ?: throw Exception("Signup timed out. Please check your internet connection and try again.")
@@ -275,11 +299,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val uid = auth.currentUser?.uid ?: user.uid
                 val userEmail = user.email ?: auth.currentUser?.email ?: mail
 
-                Log.d("AuthViewModel", "Firebase user created successfully: $uid ($userEmail), auth.currentUser.uid=${auth.currentUser?.uid}")
+                Log.d(TAG_AUTH, "Operation: SIGNUP_AUTH_SUCCESS, UID: $uid, Email: $userEmail")
 
                 // 2. Generate exactly 6-digit OTP
                 val secretCode = Random.nextInt(100000, 1000000).toString()
                 secretOtp = secretCode
+                Log.d(TAG_OTP, "Operation: GENERATE_OTP, status: SUCCESS, purpose: signup")
 
                 // 3. Save local session, encrypted pending OTP, and onboarding state
                 SessionManager.saveLoginState(getApplication(), uid, userEmail)
@@ -296,88 +321,43 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 otp = secretCode
                             )
                         )
-                        Log.d("AuthViewModel", "Background OTP email dispatch completed")
+                        Log.d(TAG_OTP, "Operation: SEND_OTP_EMAIL, status: SUCCESS")
                     } catch (apiEx: Exception) {
-                        Log.w("AuthViewModel", "Background OTP API dispatch warning: ${apiEx.message}")
+                        Log.w(TAG_OTP, "Operation: SEND_OTP_EMAIL, status: WARNING, error: ${apiEx.message}")
                     }
                 }
 
-                // 5. Blocking and awaited Firestore document writes (users, users_data, presence)
-                withContext(Dispatchers.IO) {
-                    val fsSuccess = withTimeoutOrNull(8000L) {
-                        // Create users document via UserRepositoryImpl (Fix 3)
-                        val profileCreated = userRepository.createUserProfile(uid, userEmail, name = null, plenxoId = null)
-                        if (!profileCreated) {
-                            throw Exception("Failed to initialize user document in database")
-                        }
-
-                        val now = System.currentTimeMillis()
-                        val defaultDisplayName = if (userEmail.contains("@")) userEmail.substringBefore("@") else "User"
-                        val deterministicCode = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
-                        val defaultPlenxoId = "PX-$deterministicCode"
-
-                        val initialUserDataMap = hashMapOf<String, Any>(
-                            "uid" to uid,
-                            "id" to uid,
-                            "email" to userEmail,
-                            "displayName" to defaultDisplayName,
-                            "display_name" to defaultDisplayName,
-                            "name" to defaultDisplayName,
-                            "current_name" to defaultDisplayName,
-                            "plenxoId" to defaultPlenxoId,
-                            "plenxo_id" to defaultPlenxoId,
-                            "userCode" to deterministicCode,
-                            "user_code" to deterministicCode,
-                            "px_id" to defaultPlenxoId,
-                            "px_code" to deterministicCode,
-                            "bio" to "Hey there! I am using Plenxo.",
-                            "statusMessage" to "Hey there! I am using Plenxo.",
-                            "profilePicUrl" to "",
-                            "avatar_url" to "",
-                            "photoUrl" to "",
-                            "profileUrl" to "",
-                            "status" to "online",
-                            "createdAt" to now,
-                            "updatedAt" to now,
-                            "isProfileCompleted" to false,
-                            "is_profile_completed" to false,
-                            "isProfileSetupCompleted" to false,
-                            "profileSetupCompleted" to false,
-                            "isEmailVerified" to false,
-                            "emailVerified" to false,
-                            "is_email_verified" to false
-                        )
-
-                        // Populate users_data collection
-                        firestore.collection("users_data").document(uid)
-                            .set(initialUserDataMap, SetOptions.merge())
-                            .await()
-
-                        // Initialize user presence in unified 'presence' collection (Fix 2)
-                        val presenceMap = mapOf(
-                            "user_id" to uid,
-                            "uid" to uid,
-                            "status" to "online",
-                            "state" to "online",
-                            "lastSeen" to now,
-                            "last_seen" to now,
-                            "updatedAt" to now
-                        )
-                        firestore.collection("presence").document(uid)
-                            .set(presenceMap, SetOptions.merge())
-                            .await()
-
-                        Log.d("AuthViewModel", "Successfully initialized Firestore documents for $uid in users, users_data, presence")
-                        true
-                    } ?: throw Exception("Database write timed out. Please check your network connection.")
+                // 5. Bootstrap Firestore Collections via FirestoreUserBootstrapper (Priority: users -> users_data -> presence)
+                Log.d(TAG_FS, "Operation: BOOTSTRAP_USER_START, UID: $uid, Path: users/$uid")
+                val bootstrapResult = withContext(Dispatchers.IO) {
+                    FirestoreUserBootstrapper.initializeUser(uid, userEmail)
                 }
 
-                // 6. Navigate to OTP verification only after Firestore document writes succeed
+                if (!bootstrapResult.success) {
+                    val detailedMsg = bootstrapResult.errorMessage ?: "Failed to initialize user document in database"
+                    Log.e(TAG_FS, "Operation: BOOTSTRAP_USER_FAILURE, UID: $uid, error: $detailedMsg")
+                    throw Exception(detailedMsg)
+                }
+
+                Log.d(TAG_PROFILE, "Operation: BOOTSTRAP_USER_SUCCESS, UID: $uid, Plenxo ID: ${bootstrapResult.plenxoId}")
+                Log.d("PlenxoSignup", "FINAL SIGNUP INITIALIZATION RESULT: Success for UID=$uid")
+
+                // Pre-populate Plenxo ID in local session and state
+                this@AuthViewModel.plenxoId.value = bootstrapResult.plenxoId
+                SessionManager.saveUserProfileLocally(
+                    getApplication(),
+                    plenxoId = bootstrapResult.plenxoId,
+                    displayName = if (userEmail.contains("@")) userEmail.substringBefore("@") else "User"
+                )
+
+                // 6. Navigate to OTP verification only after Firestore document write succeeds
                 withContext(Dispatchers.Main) {
                     Toast.makeText(getApplication(), "Account created! Verification code: $secretCode", Toast.LENGTH_LONG).show()
                     isSignUpLoading.value = false
-                    signUpSuccess.value = true
                     startOtpTimer()
+                    signUpSuccess.value = true
+                    requiresOtp.value = true
+                    Log.d("PlenxoAuthFlow", "OTP_SCREEN_NAVIGATION from signup flow")
                 }
             } catch (e: FirebaseAuthWeakPasswordException) {
                 Log.e("AuthViewModel", "Signup weak password: ${e.message}", e)
@@ -485,16 +465,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (isVerified) {
+                    Log.d("PlenxoAuthFlow", "OTP_VERIFICATION_SUCCESS for $userEmail")
                     timerJob?.cancel()
                     isTimerRunning.value = false
                     SessionManager.clearPendingOtp(getApplication())
                     SessionManager.saveOnboardingStage(getApplication(), SessionManager.STAGE_WELCOME_PENDING)
                     otpSuccess.value = true
                 } else {
+                    Log.w("PlenxoAuthFlow", "OTP_VERIFICATION_FAILURE: Invalid OTP code")
                     otpError.value = "Invalid OTP code, please try again"
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "OTP verification failed: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "OTP verification failed: ${e.message}", e)
                 otpError.value = e.localizedMessage ?: "Verification failed. Please try again."
             } finally {
                 isVerifyingOtp.value = false
@@ -803,7 +785,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // 5. Login Flow
-    fun performLogin(onSuccess: (UserProfile) -> Unit) {
+    fun performLogin(
+        onSuccess: (UserProfile) -> Unit,
+        onNavigateToOtp: (() -> Unit)? = null
+    ) {
         val mail = loginEmail.value.trim()
         val pwd = loginPassword.value
         val captchaVal = loginCaptchaInput.value.trim()
@@ -829,7 +814,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        if (isLoginLoading.value) return
+
         isLoginLoading.value = true
+        Log.d(TAG_AUTH, "Operation: LOGIN_START, email: $mail")
+
         viewModelScope.launch {
             try {
                 // 1. Authenticate with 10s timeout guard
@@ -841,11 +830,57 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val uid = firebaseUser.uid
                 val userEmail = firebaseUser.email ?: mail
 
-                // 2. Fetch user document from Firestore (Server-first with cache fallback & email query fallback)
+                Log.d(TAG_AUTH, "Operation: LOGIN_AUTH_SUCCESS, UID: $uid, email: $userEmail")
+
+                SessionManager.saveLoginState(getApplication(), uid, userEmail)
+
+                // 2. CHECK ONBOARDING STAGE IMMEDIATELY (Priority #1)
+                val onboardingStage = SessionManager.getSavedOnboardingStage(getApplication())
+                val pendingOtpPair = SessionManager.getPendingOtp(getApplication())
+                val isOtpPending = onboardingStage == SessionManager.STAGE_OTP_PENDING ||
+                    (pendingOtpPair != null && (pendingOtpPair.first.equals(userEmail, ignoreCase = true) || pendingOtpPair.first.equals(mail, ignoreCase = true)))
+
+                Log.d(TAG_AUTH, "Operation: CHECK_ONBOARDING_STAGE, stage: $onboardingStage, isOtpPending: $isOtpPending")
+
+                if (isOtpPending) {
+                    Log.d(TAG_OTP, "Operation: RESTORE_PENDING_OTP, UID: $uid, email: $userEmail, navigating to OTP")
+                    SessionManager.saveOnboardingStage(getApplication(), SessionManager.STAGE_OTP_PENDING)
+                    SessionManager.saveOnboardingCompleted(getApplication(), false)
+
+                    if (pendingOtpPair != null) {
+                        secretOtp = pendingOtpPair.second
+                        signUpEmail.value = pendingOtpPair.first
+                        otpError.value = null
+                        Log.d("PlenxoAuthFlow", "OTP_STATE_RESTORED: Pending OTP restored from SessionManager for ${pendingOtpPair.first}")
+                        startOtpTimer()
+                    } else {
+                        secretOtp = ""
+                        signUpEmail.value = userEmail
+                        otpError.value = "Your verification code is no longer available. Tap Resend Code."
+                        secondsRemaining.value = 0
+                        isTimerRunning.value = false
+                        Log.w("PlenxoAuthFlow", "OTP_STATE_RESTORED: Pending OTP missing/expired; prompted resend")
+                    }
+
+                    otpInput.value = ""
+                    otpSuccess.value = false
+
+                    withContext(Dispatchers.Main) {
+                        isLoginLoading.value = false
+                        requiresOtp.value = true
+                        onNavigateToOtp?.invoke()
+                        Log.d("PlenxoAuthFlow", "OTP_SCREEN_NAVIGATION dispatched")
+                    }
+                    return@launch
+                }
+
+                // 3. Fetch user document from Firestore (Server-first with cache fallback & email query fallback)
                 val readResult = try {
-                    com.example.model.fetchUserDocumentSafely(uid, firestore, emailFallback = userEmail)
+                    withTimeoutOrNull(5000L) {
+                        com.example.model.fetchUserDocumentSafely(uid, firestore, emailFallback = userEmail)
+                    }
                 } catch (e: Exception) {
-                    Log.w("AuthViewModel", "Resilient document fetch error for $uid: ${e.message}")
+                    Log.w("PlenxoAuthFlow", "Resilient document fetch error for $uid: ${e.message}")
                     null
                 }
 
@@ -949,51 +984,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     SessionManager.saveOnboardingCompleted(getApplication(), false)
                 }
 
-                // If Firestore document is missing or unpopulated, write user profile to Firestore immediately
+                // If Firestore document is missing or unpopulated, repair user profile in Firestore immediately
                 if (doc == null || !doc.exists()) {
-                    try {
-                        val now = System.currentTimeMillis()
-                        val repairUserMap = mapOf(
-                            "uid" to uid,
-                            "id" to uid,
-                            "email" to userEmail,
-                            "displayName" to finalName,
-                            "display_name" to finalName,
-                            "name" to finalName,
-                            "bio" to finalBio,
-                            "statusMessage" to finalBio,
-                            "profilePicUrl" to finalPic,
-                            "avatar_url" to finalPic,
-                            "photoUrl" to finalPic,
-                            "profileUrl" to finalPic,
-                            "plenxoId" to finalPlenxoId,
-                            "plenxo_id" to finalPlenxoId,
-                            "userCode" to finalPlenxoId.removePrefix("PX-"),
-                            "user_code" to finalPlenxoId.removePrefix("PX-"),
-                            "px_id" to finalPlenxoId,
-                            "px_code" to finalPlenxoId.removePrefix("PX-"),
-                            "dob" to finalDob,
-                            "gender" to finalGender,
-                            "age" to storedAge,
-                            "status" to "online",
-                            "createdAt" to now,
-                            "updatedAt" to now,
-                            "isProfileCompleted" to isProfileCompletedInDoc,
-                            "is_profile_completed" to isProfileCompletedInDoc,
-                            "isProfileSetupCompleted" to isProfileCompletedInDoc,
-                            "profileSetupCompleted" to isProfileCompletedInDoc
-                        )
-                        withContext(Dispatchers.IO) {
-                            try {
-                                firestore.collection("users").document(uid)
-                                    .set(repairUserMap, SetOptions.merge())
-                                    .await()
-                            } catch (e: Exception) {
-                                Log.w("AuthViewModel", "Firestore heal write warning: ${e.message}")
-                            }
+                    Log.i("PlenxoFirestoreBootstrap", "Auto-healing missing user document for $uid on login")
+                    withContext(Dispatchers.IO) {
+                        try {
+                            FirestoreUserBootstrapper.initializeUser(
+                                uid = uid,
+                                email = userEmail,
+                                name = finalName.takeIf { it != "User" },
+                                plenxoId = finalPlenxoId.takeIf { it.startsWith("PX-") }
+                            )
+                        } catch (e: Exception) {
+                            Log.w("PlenxoFirestoreBootstrap", "Auto-heal exception during login: ${e.message}")
                         }
-                    } catch (e: Exception) {
-                        Log.w("AuthViewModel", "Auto-heal exception: ${e.message}")
                     }
                 }
 
@@ -1031,25 +1035,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
             } catch (e: FirebaseAuthInvalidCredentialsException) {
-                Log.e("AuthViewModel", "Login invalid credentials: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "AUTH_LOGIN_FAILURE: Invalid credentials [${e.errorCode}]: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     loginError.value = "Invalid email or password. Please check your credentials."
                     generateLoginCaptcha()
                 }
             } catch (e: FirebaseAuthInvalidUserException) {
-                Log.e("AuthViewModel", "Login invalid user: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "AUTH_LOGIN_FAILURE: Invalid user [${e.errorCode}]: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     loginError.value = "No account found with this email address. Please sign up first."
                     generateLoginCaptcha()
                 }
             } catch (e: FirebaseNetworkException) {
-                Log.e("AuthViewModel", "Login network error: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "AUTH_LOGIN_FAILURE: Network error: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     loginError.value = "Network error. Please check your internet connection."
                     generateLoginCaptcha()
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "Login failed: ${e.message}", e)
+                Log.e("PlenxoAuthFlow", "AUTH_LOGIN_FAILURE: Unexpected error: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     val rawMsg = e.localizedMessage ?: "Invalid credentials"
                     loginError.value = when {
@@ -1090,6 +1094,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         activeOtp.value = ""
         otpSuccess.value = false
         otpError.value = null
+        requiresOtp.value = false
         timerJob?.cancel()
         isTimerRunning.value = false
 

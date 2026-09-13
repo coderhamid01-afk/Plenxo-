@@ -248,8 +248,8 @@ object SessionManager {
         context: Context,
         plenxoId: String,
         displayName: String,
-        bio: String,
-        profilePicUrl: String,
+        bio: String = "",
+        profilePicUrl: String = "",
         dob: String = "",
         gender: String = "",
         age: String = ""

@@ -6157,14 +6157,15 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                                 "last_seen" to com.google.firebase.database.ServerValue.TIMESTAMP
                             )
                         )
+                        Log.d("PLENXO_RTD", "Operation: PRESENCE_SYNC, UID: $uid, path: status/$uid, status: online")
                     }
                 }
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
-                    Log.e("Plenxo", "Presence listener cancelled", error.toException())
+                    Log.e("PLENXO_RTD", "Presence listener cancelled: ${error.message}", error.toException())
                 }
             })
         } catch (e: Exception) {
-            Log.e("Plenxo", "RTDB presence setup fallback error", e)
+            Log.e("PLENXO_RTD", "RTDB presence setup fallback error: ${e.message}", e)
         }
     }
 

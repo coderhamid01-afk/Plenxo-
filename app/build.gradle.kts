@@ -23,7 +23,7 @@ android {
   compileSdk = 34
 
   defaultConfig {
-    applicationId = "com.coderhamid.plenxo.me"
+    applicationId = "com.plenxo.me"
     minSdk = 24
     targetSdk = 34
     versionCode = 1
@@ -31,22 +31,19 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-    // Active Required Fields (configured via environment or local properties)
+    // Active Required Fields (configured via environment or local properties with fresh defaults)
     val apiKey = ((project.findProperty("FIREBASE_API_KEY") as? String).takeIf { !it.isNullOrBlank() }
         ?: System.getenv("FIREBASE_API_KEY").takeIf { !it.isNullOrBlank() }
-        ?: "").replace("\"", "").trim()
+        ?: "AIzaSyBW5ZGkhDJvmY4ghXYuseY5EXWcO-kIQEw").replace("\"", "").trim()
 
     val projectId = ((project.findProperty("FIREBASE_PROJECT_ID") as? String).takeIf { !it.isNullOrBlank() }
-        ?: System.getenv("FIREBASE_PROJECT_ID").takeIf { !it.isNullOrBlank() }
-        ?: "").replace("\"", "").trim()
+        ?: "plenxo-pro-max").replace("\"", "").trim()
 
     val appId = ((project.findProperty("FIREBASE_APP_ID") as? String).takeIf { !it.isNullOrBlank() }
-        ?: System.getenv("FIREBASE_APP_ID").takeIf { !it.isNullOrBlank() }
-        ?: "").replace("\"", "").trim()
+        ?: "1:638943348693:android:48162304b4174b7ccf5f5c").replace("\"", "").trim()
 
     val dbUrl = ((project.findProperty("FIREBASE_DATABASE_URL") as? String).takeIf { !it.isNullOrBlank() }
-        ?: System.getenv("FIREBASE_DATABASE_URL").takeIf { !it.isNullOrBlank() }
-        ?: "").replace("\"", "").trim()
+        ?: "https://plenxo-pro-max-default-rtdb.firebaseio.com").replace("\"", "").trim()
 
     val netlifyUrl = ((project.findProperty("NETLIFY_OTP_URL") as? String).takeIf { !it.isNullOrBlank() }
         ?: System.getenv("NETLIFY_OTP_URL").takeIf { !it.isNullOrBlank() }
