@@ -17,7 +17,10 @@ enum class CallState {
     CONNECTED,
     RECONNECTING,
     ENDED,
-    FAILED
+    FAILED,
+    TIMEOUT,
+    REJECTED,
+    CANCELLED
 }
 
 @Keep
@@ -52,7 +55,7 @@ data class CallSession(
     val audioRoute: AudioOutputRoute = AudioOutputRoute.EARPIECE,
     val isMicMuted: Boolean = false,
     val isSpeakerOn: Boolean = false,
-    val isCameraOn: Boolean = true,
+    val isCameraOn: Boolean = false,
     val isFrontCamera: Boolean = true,
     val isBlurEnabled: Boolean = false,
     val isIncoming: Boolean = false,

@@ -97,7 +97,7 @@ object CallManager {
             audioRoute = initialRoute,
             isMicMuted = false,
             isSpeakerOn = callType == CallType.VIDEO,
-            isCameraOn = true,
+            isCameraOn = callType == CallType.VIDEO,
             isFrontCamera = true,
             isBlurEnabled = false,
             isIncoming = false,
@@ -136,10 +136,27 @@ object CallManager {
 
         engine.onIceConnectionChanged = { quality ->
             setNetworkQuality(quality)
-            if (quality == NetworkQuality.EXCELLENT || quality == NetworkQuality.GOOD) {
-                val current = _activeCall.value
-                if (current != null && current.callState == CallState.OUTGOING_RINGING) {
-                    transitionToConnected()
+            val current = _activeCall.value
+            if (current != null) {
+                when (quality) {
+                    NetworkQuality.EXCELLENT -> {
+                        if (current.callState != CallState.CONNECTED) {
+                            transitionToConnected()
+                        }
+                    }
+                    NetworkQuality.POOR -> {
+                        if (current.callState == CallState.CONNECTED) {
+                            _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
+                        }
+                    }
+                    NetworkQuality.DISCONNECTED -> {
+                        terminateCall(CallState.FAILED, "Connection Failed")
+                    }
+                    NetworkQuality.GOOD -> {
+                        if (current.callState != CallState.CONNECTED && current.callState != CallState.OUTGOING_RINGING && current.callState != CallState.INCOMING_RINGING) {
+                            transitionToConnected()
+                        }
+                    }
                 }
             }
         }
@@ -186,8 +203,8 @@ object CallManager {
                     onAnswerReceived = { answerSdp ->
                         val answerDesc = SessionDescription(SessionDescription.Type.ANSWER, answerSdp)
                         engine.setRemoteDescription(answerDesc) { success ->
-                            if (success) {
-                                transitionToConnected()
+                            if (!success) {
+                                terminateCall(CallState.FAILED, "Failed to connect")
                             }
                         }
                     },
@@ -271,7 +288,7 @@ object CallManager {
             audioRoute = if (callType == CallType.VIDEO) AudioOutputRoute.SPEAKER else AudioOutputRoute.EARPIECE,
             isMicMuted = false,
             isSpeakerOn = callType == CallType.VIDEO,
-            isCameraOn = true,
+            isCameraOn = callType == CallType.VIDEO,
             isFrontCamera = true,
             isBlurEnabled = false,
             isIncoming = true,
@@ -331,12 +348,33 @@ object CallManager {
 
         engine.onIceConnectionChanged = { quality ->
             setNetworkQuality(quality)
+            val current = _activeCall.value
+            if (current != null) {
+                when (quality) {
+                    NetworkQuality.EXCELLENT -> {
+                        if (current.callState != CallState.CONNECTED) {
+                            transitionToConnected()
+                        }
+                    }
+                    NetworkQuality.POOR -> {
+                        if (current.callState == CallState.CONNECTED) {
+                            _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
+                        }
+                    }
+                    NetworkQuality.DISCONNECTED -> {
+                        terminateCall(CallState.FAILED, "Connection Failed")
+                    }
+                    NetworkQuality.GOOD -> {
+                        if (current.callState != CallState.CONNECTED && current.callState != CallState.OUTGOING_RINGING && current.callState != CallState.INCOMING_RINGING) {
+                            transitionToConnected()
+                        }
+                    }
+                }
+            }
         }
 
         engine.setupLocalMedia(isVideo = (current.callType == CallType.VIDEO), useFrontCamera = true)
         engine.createPeerConnection()
-
-        transitionToConnected()
 
         // 3. Set Remote Offer & Create Answer
         val offerSdp = incomingOfferSdp
@@ -374,6 +412,51 @@ object CallManager {
         startDurationTimer()
     }
 
+    private fun terminateCall(reason: CallState, statusText: String, overrideDirection: String? = null) {
+        val current = _activeCall.value ?: return
+        val finalDirection = overrideDirection ?: if (current.isIncoming) {
+            if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "INCOMING"
+        } else {
+            "OUTGOING"
+        }
+
+        val log = CallLog(
+            callId = current.callId,
+            peerUid = current.peerUid,
+            peerName = current.peerName,
+            peerPhotoUrl = current.peerAvatar,
+            peerPlenxoId = current.peerPlenxoId,
+            callType = if (current.callType == CallType.VIDEO) "VIDEO" else "AUDIO",
+            direction = finalDirection,
+            timestamp = current.timestamp,
+            durationSeconds = current.durationSeconds
+        )
+
+        val firestoreStatus = when (reason) {
+            CallState.ENDED -> "ENDED"
+            CallState.FAILED -> "FAILED"
+            CallState.TIMEOUT -> "TIMEOUT"
+            CallState.REJECTED -> "DECLINED"
+            CallState.CANCELLED -> "CANCELLED"
+            else -> "ENDED"
+        }
+
+        callRepository.updateCallStatus(current.callId, firestoreStatus)
+        cleanupPreviousSession()
+
+        _activeCall.value = current.copy(callState = reason, peerStatus = statusText)
+        saveCallLog(log)
+
+        if (reason == CallState.TIMEOUT && current.callState == CallState.INCOMING_RINGING) {
+            NotificationHelper.showMissedCallNotification(appContext, current.peerName, current.callType.name)
+        }
+
+        scope.launch {
+            delay(1000)
+            _activeCall.value = null
+        }
+    }
+
     private fun startDurationTimer() {
         timerJob?.cancel()
         timerJob = scope.launch {
@@ -396,33 +479,7 @@ object CallManager {
             val current = _activeCall.value ?: return@launch
             if (current.callState == CallState.OUTGOING_RINGING || current.callState == CallState.INCOMING_RINGING) {
                 // Timeout logic
-                val isMissedIncoming = current.callState == CallState.INCOMING_RINGING
-                
-                val log = CallLog(
-                    callId = current.callId,
-                    peerUid = current.peerUid,
-                    peerName = current.peerName,
-                    peerPhotoUrl = current.peerAvatar,
-                    peerPlenxoId = current.peerPlenxoId,
-                    callType = if (current.callType == CallType.VIDEO) "VIDEO" else "AUDIO",
-                    direction = if (isMissedIncoming) "MISSED" else "OUTGOING", // "OUTGOING" but 0 duration
-                    timestamp = current.timestamp,
-                    durationSeconds = 0L
-                )
-
-                callRepository.updateCallStatus(current.callId, "TIMEOUT")
-                cleanupPreviousSession()
-
-                _activeCall.value = current.copy(callState = CallState.ENDED, peerStatus = "No Answer")
-                saveCallLog(log)
-
-                // Push a missed call notification if we missed it locally
-                if (isMissedIncoming) {
-                    NotificationHelper.showMissedCallNotification(appContext, current.peerName, current.callType.name)
-                }
-
-                delay(1000)
-                _activeCall.value = null
+                terminateCall(CallState.TIMEOUT, "No Answer", if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "OUTGOING")
             }
         }
     }
@@ -431,29 +488,7 @@ object CallManager {
      * Decline incoming call
      */
     fun declineCall() {
-        val current = _activeCall.value ?: return
-        val log = CallLog(
-            callId = current.callId,
-            peerUid = current.peerUid,
-            peerName = current.peerName,
-            peerPhotoUrl = current.peerAvatar,
-            peerPlenxoId = current.peerPlenxoId,
-            callType = if (current.callType == CallType.VIDEO) "VIDEO" else "AUDIO",
-            direction = "MISSED",
-            timestamp = current.timestamp,
-            durationSeconds = 0L
-        )
-
-        callRepository.updateCallStatus(current.callId, "DECLINED")
-        cleanupPreviousSession()
-
-        _activeCall.value = current.copy(callState = CallState.ENDED, peerStatus = "Call Declined")
-        saveCallLog(log)
-
-        scope.launch {
-            delay(800)
-            _activeCall.value = null
-        }
+        terminateCall(CallState.REJECTED, "Call Declined", "MISSED")
     }
 
     /**
@@ -461,60 +496,29 @@ object CallManager {
      */
     fun endCall() {
         val current = _activeCall.value ?: return
-        val finalDuration = current.durationSeconds
-        val direction = if (current.isIncoming) {
-            if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "INCOMING"
+        if (current.callState == CallState.OUTGOING_RINGING) {
+            terminateCall(CallState.CANCELLED, "Call Cancelled")
         } else {
-            "OUTGOING"
-        }
-
-        val log = CallLog(
-            callId = current.callId,
-            peerUid = current.peerUid,
-            peerName = current.peerName,
-            peerPhotoUrl = current.peerAvatar,
-            peerPlenxoId = current.peerPlenxoId,
-            callType = if (current.callType == CallType.VIDEO) "VIDEO" else "AUDIO",
-            direction = direction,
-            timestamp = current.timestamp,
-            durationSeconds = finalDuration
-        )
-
-        callRepository.updateCallStatus(current.callId, "ENDED")
-        cleanupPreviousSession()
-
-        _activeCall.value = current.copy(callState = CallState.ENDED, peerStatus = "Call Ended")
-        saveCallLog(log)
-
-        scope.launch {
-            delay(1000)
-            _activeCall.value = null
+            terminateCall(CallState.ENDED, "Call Ended")
         }
     }
 
     private fun onRemoteEnded(status: String) {
-        val current = _activeCall.value ?: return
-        val label = if (status == "DECLINED") "Call Declined" else "Call Ended"
-        val log = CallLog(
-            callId = current.callId,
-            peerUid = current.peerUid,
-            peerName = current.peerName,
-            peerPhotoUrl = current.peerAvatar,
-            peerPlenxoId = current.peerPlenxoId,
-            callType = if (current.callType == CallType.VIDEO) "VIDEO" else "AUDIO",
-            direction = if (current.isIncoming) "MISSED" else "OUTGOING",
-            timestamp = current.timestamp,
-            durationSeconds = current.durationSeconds
-        )
-
-        cleanupPreviousSession()
-        _activeCall.value = current.copy(callState = CallState.ENDED, peerStatus = label)
-        saveCallLog(log)
-
-        scope.launch {
-            delay(1000)
-            _activeCall.value = null
+        val reason = when(status) {
+            "DECLINED" -> CallState.REJECTED
+            "CANCELLED" -> CallState.CANCELLED
+            "TIMEOUT" -> CallState.TIMEOUT
+            "FAILED" -> CallState.FAILED
+            else -> CallState.ENDED
         }
+        val label = when(status) {
+            "DECLINED" -> "Call Declined"
+            "CANCELLED" -> "Call Cancelled"
+            "TIMEOUT" -> "No Answer"
+            "FAILED" -> "Call Failed"
+            else -> "Call Ended"
+        }
+        terminateCall(reason, label)
     }
 
     private fun saveCallLog(log: CallLog) {

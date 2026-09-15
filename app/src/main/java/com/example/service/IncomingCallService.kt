@@ -44,7 +44,23 @@ class IncomingCallService : Service() {
                 startIncomingCall(callId, callerName, callType)
             }
             ACTION_ACCEPT_CALL -> {
-                CallManager.acceptCall()
+                val hasAudio = androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val hasCamera = androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val needsCamera = CallManager.activeCall.value?.callType == com.example.calling.model.CallType.VIDEO
+                
+                if (hasAudio && (!needsCamera || hasCamera)) {
+                    CallManager.acceptCall()
+                    val activityIntent = Intent(this, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+                    startActivity(activityIntent)
+                } else {
+                    val activityIntent = Intent(this, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        putExtra("AUTO_ACCEPT_CALL", true)
+                    }
+                    startActivity(activityIntent)
+                }
                 stopIncomingCall()
             }
             ACTION_DECLINE_CALL -> {

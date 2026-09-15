@@ -52,7 +52,8 @@ class IncomingCallActivity : ComponentActivity() {
                 val activeCall by CallManager.activeCall.collectAsStateWithLifecycle()
 
                 LaunchedEffect(activeCall?.callState) {
-                    if (activeCall == null || activeCall?.callState == CallState.ENDED || activeCall?.callState == CallState.FAILED) {
+                    val state = activeCall?.callState
+                    if (activeCall == null || state == CallState.ENDED || state == CallState.FAILED || state == CallState.TIMEOUT || state == CallState.REJECTED || state == CallState.CANCELLED) {
                         finish()
                     }
                 }

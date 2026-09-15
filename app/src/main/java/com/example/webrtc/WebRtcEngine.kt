@@ -46,6 +46,8 @@ class WebRtcEngine(private val context: Context) {
 
     private var isVideoCall = false
     private var isFrontFacingCamera = true
+    
+    private val pendingRemoteIceCandidates = mutableListOf<IceCandidate>()
 
     init {
         initializeFactory()
@@ -150,7 +152,19 @@ class WebRtcEngine(private val context: Context) {
         val factory = peerConnectionFactory ?: return
 
         val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
+            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
+                .setUsername("openrelayproject")
+                .setPassword("openrelayproject")
+                .createIceServer(),
+            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443")
+                .setUsername("openrelayproject")
+                .setPassword("openrelayproject")
+                .createIceServer(),
+            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443?transport=tcp")
+                .setUsername("openrelayproject")
+                .setPassword("openrelayproject")
+                .createIceServer()
         )
 
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
@@ -325,6 +339,15 @@ class WebRtcEngine(private val context: Context) {
             override fun onCreateSuccess(p0: SessionDescription?) {}
             override fun onSetSuccess() {
                 Log.d(TAG, "Remote description set successfully (${sdp.type})")
+                
+                // Flush pending ICE candidates
+                synchronized(pendingRemoteIceCandidates) {
+                    for (candidate in pendingRemoteIceCandidates) {
+                        peerConnection?.addIceCandidate(candidate)
+                    }
+                    pendingRemoteIceCandidates.clear()
+                }
+                
                 scope.launch { onComplete?.invoke(true) }
             }
             override fun onCreateFailure(p0: String?) {}
@@ -340,7 +363,13 @@ class WebRtcEngine(private val context: Context) {
      */
     fun addIceCandidate(candidate: IceCandidate) {
         try {
-            peerConnection?.addIceCandidate(candidate)
+            if (peerConnection?.remoteDescription == null) {
+                synchronized(pendingRemoteIceCandidates) {
+                    pendingRemoteIceCandidates.add(candidate)
+                }
+            } else {
+                peerConnection?.addIceCandidate(candidate)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error adding ICE candidate: ${e.message}")
         }
