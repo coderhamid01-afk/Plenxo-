@@ -201,4 +201,51 @@ object NotificationHelper {
             }
         }
     }
+
+    fun showMissedCallNotification(context: Context, callerName: String, callType: String) {
+        val channelId = "missed_calls"
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Missed Calls",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for missed calls"
+                enableLights(true)
+                lightColor = android.graphics.Color.RED
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val typeText = if (callType.equals("VIDEO", ignoreCase = true)) "Video" else "Voice"
+        
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("NAVIGATE_TO", "CALL_HISTORY")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            "missed_call".hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.stat_notify_missed_call)
+            .setContentTitle("Missed $typeText Call")
+            .setContentText("Missed call from $callerName")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setColor(android.graphics.Color.RED)
+
+        try {
+            NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), builder.build())
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Missing notification permissions: ${e.message}")
+        }
+    }
 }

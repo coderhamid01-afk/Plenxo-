@@ -86,6 +86,7 @@ class ProfileSettingsRepositoryImpl : ProfileSettingsRepository {
             bioStatus = resolvedBio,
             profilePicUrl = resolvedPicUrl,
             profileUrl = resolvedPicUrl,
+            avatarUrl = resolvedPicUrl,
             userCode = resolvedPlenxoId,
             plenxoId = resolvedPlenxoId,
             selectedRingId = (data["selectedRingId"] as? String) ?: "",

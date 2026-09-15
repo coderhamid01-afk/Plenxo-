@@ -55,6 +55,9 @@ import com.example.ui.theme.PlenxoColors
 import com.example.util.PermissionManager
 import com.example.viewmodel.PlenxoScreen
 import com.example.viewmodel.PlenxoViewModel
+import com.example.calling.CallManager
+import com.example.calling.model.CallType
+import com.example.ui.calling.rememberCallPermissionController
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
@@ -161,6 +164,8 @@ fun ChatDetailScreen(
         }
     )
 
+    val callPermissionController = rememberCallPermissionController()
+
     // Auto-save received incoming video messages to Camera Roll
     val coroutineScope = rememberCoroutineScope()
     LaunchedEffect(messages) {
@@ -197,10 +202,11 @@ fun ChatDetailScreen(
         activeWallpaperId != "NONE"
 
     val recipientUser = usersCache[recipientUid]
-    val profilePicUrl = recipientUser?.profilePicUrl ?: ""
+    val profilePicUrl = recipientUser?.effectiveAvatarUrl ?: recipientUser?.profilePicUrl ?: ""
     val profileRingId = recipientUser?.profileRingId ?: "none"
     val presenceMap = userPresences[recipientUid] ?: emptyMap()
     val presenceStatus = (presenceMap["status"] as? String) ?: (presenceMap["state"] as? String) ?: "offline"
+    val recipientPlenxoId = recipientUser?.plenxoId?.ifBlank { recipientUser.userCode.orEmpty() } ?: ""
 
     Box(
         modifier = Modifier
@@ -235,7 +241,6 @@ fun ChatDetailScreen(
                         }
                     },
                     title = {
-                        val recipientPlenxoId = recipientUser?.plenxoId?.ifBlank { recipientUser?.userCode.orEmpty() } ?: ""
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -259,6 +264,7 @@ fun ChatDetailScreen(
                                 ProfileImageWithRing(
                                     imageUrl = profilePicUrl,
                                     profileRingId = profileRingId,
+                                    fallbackInitial = recipientName.take(1).uppercase(),
                                     modifier = Modifier.fillMaxSize(),
                                     ringBorderWidth = 5
                                 )
@@ -314,22 +320,42 @@ fun ChatDetailScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            if (recipientUid.isNotEmpty()) {
-                                viewModel.initiateCall(recipientUid, "AUDIO")
-                            } else {
-                                Toast.makeText(context, "Error: recipient UID is empty", Toast.LENGTH_SHORT).show()
-                            }
-                        }) {
+                        IconButton(
+                            onClick = {
+                                if (recipientUid.isNotBlank()) {
+                                    callPermissionController.startVoiceCallWithPermission {
+                                        CallManager.startOutgoingCall(
+                                            peerUid = recipientUid,
+                                            peerName = recipientName.ifBlank { "Plenxo User" },
+                                            peerAvatar = profilePicUrl,
+                                            peerPlenxoId = recipientPlenxoId,
+                                            callType = CallType.VOICE,
+                                            onSaveLog = { log -> viewModel.recordCallLog(log) }
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.testTag("chat_voice_call_button")
+                        ) {
                             Icon(Icons.Default.Phone, contentDescription = "Voice Call", tint = Color.White)
                         }
-                        IconButton(onClick = {
-                            if (recipientUid.isNotEmpty()) {
-                                viewModel.initiateCall(recipientUid, "VIDEO")
-                            } else {
-                                Toast.makeText(context, "Error: recipient UID is empty", Toast.LENGTH_SHORT).show()
-                            }
-                        }) {
+                        IconButton(
+                            onClick = {
+                                if (recipientUid.isNotBlank()) {
+                                    callPermissionController.startVideoCallWithPermission {
+                                        CallManager.startOutgoingCall(
+                                            peerUid = recipientUid,
+                                            peerName = recipientName.ifBlank { "Plenxo User" },
+                                            peerAvatar = profilePicUrl,
+                                            peerPlenxoId = recipientPlenxoId,
+                                            callType = CallType.VIDEO,
+                                            onSaveLog = { log -> viewModel.recordCallLog(log) }
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.testTag("chat_video_call_button")
+                        ) {
                             Icon(Icons.Default.Videocam, contentDescription = "Video Call", tint = Color.White)
                         }
                         IconButton(onClick = { }) {

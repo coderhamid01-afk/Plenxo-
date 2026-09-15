@@ -280,6 +280,17 @@ object SessionManager {
     fun getLocalBio(context: Context): String =
         getEncryptedPrefs(context)?.getString(KEY_BIO, "") ?: ""
 
+    fun saveLocalProfilePicUrl(context: Context, profilePicUrl: String) {
+        try {
+            getEncryptedPrefs(context)?.edit()?.apply {
+                putString(KEY_PROFILE_PIC_URL, profilePicUrl)
+                apply()
+            }
+        } catch (e: Exception) {
+            Log.e("SessionManager", "Error saving profile pic locally", e)
+        }
+    }
+
     fun getLocalProfilePicUrl(context: Context): String =
         getEncryptedPrefs(context)?.getString(KEY_PROFILE_PIC_URL, "") ?: ""
 

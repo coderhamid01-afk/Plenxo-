@@ -14,6 +14,7 @@ data class User(
     @get:PropertyName("displayName") @set:PropertyName("displayName") var displayName: String = "User",
     @get:PropertyName("bio") @set:PropertyName("bio") var bio: String = "",
     @get:PropertyName("profilePicUrl") @set:PropertyName("profilePicUrl") var profilePicUrl: String = "",
+    @get:PropertyName("avatarUrl") @set:PropertyName("avatarUrl") var avatarUrl: String = "",
     @get:PropertyName("themePreference") @set:PropertyName("themePreference") var themePreference: String = "Blue",
     @get:PropertyName("userCode") @set:PropertyName("userCode") var userCode: String = "",
     @get:PropertyName("plenxoId") @set:PropertyName("plenxoId") var plenxoId: String = "",
@@ -41,6 +42,51 @@ data class User(
             bio = s
         }
     }
+
+    @PropertyName("avatar_url")
+    fun setAvatarUrlSnake(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("photoUrl")
+    fun setPhotoUrl(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("profilePic")
+    fun setProfilePic(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("profileUrl")
+    fun setProfileUrl(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    val effectiveAvatarUrl: String
+        get() = avatarUrl.takeIf { it.isNotBlank() }
+            ?: profilePicUrl.takeIf { it.isNotBlank() }
+            ?: ""
 }
 
 @Keep

@@ -271,7 +271,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             senderId = senderId,
             receiverId = receiverId,
             messageText = "🎤 Voice Note",
-            messageType = "VOICE",
+            messageType = "AUDIO",
             localUri = voiceUri.toString(),
             mediaUrl = voiceUri.toString(),
             timestamp = System.currentTimeMillis(),
@@ -294,6 +294,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 val finalMessage = tempMessage.copy(
+                    messageType = "AUDIO",
                     mediaUrl = downloadUrl,
                     status = "SENT",
                     messageStatus = MessageStatus.SENT,

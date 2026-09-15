@@ -78,6 +78,13 @@ import com.example.ui.NormalSettingsScreen
 import com.example.ui.ProfileSettingsScreen
 import com.example.ui.settings.LanguageSelectionScreen
 import com.example.viewmodel.SettingsViewModel
+import com.example.calling.CallManager
+import com.example.calling.model.CallSession
+import com.example.calling.model.CallState
+import com.example.calling.model.CallType
+import com.example.ui.calling.VoiceCallScreen
+import com.example.ui.calling.VideoCallScreen
+import com.example.ui.calling.IncomingCallOverlay
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.scaleIn
@@ -155,6 +162,14 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
     val selectedThemeName by viewModel.selectedTheme.collectAsState()
 
     val (primaryColor, darkPrimaryColor) = getThemeColors(selectedThemeName)
+
+    val activeCallSession by CallManager.activeCall.collectAsState()
+
+    LaunchedEffect(Unit) {
+        CallManager.setLogSaver { log ->
+            viewModel.recordCallLog(log)
+        }
+    }
 
     val deepLinkResolutionState by viewModel.deepLinkResolutionState.collectAsState()
     val context = LocalContext.current
@@ -555,67 +570,6 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
             )
         }
 
-
-
-        val callViewModel: com.example.webrtc.CallViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-        val rtcCallStatus by callViewModel.callStatus.collectAsState()
-        
-        val activeCall by viewModel.activeSimulatedCall.collectAsState()
-        val callState by viewModel.simulatedCallState.collectAsState()
-        
-        LaunchedEffect(activeCall) {
-            val call = activeCall ?: return@LaunchedEffect
-            if (call.direction == "OUTGOING" && callState == "Calling...") {
-                viewModel.activeSimulatedCall.value = null
-                
-                callViewModel.startOutgoingCall(
-                    callerId = viewModel.currentUserId,
-                    callerName = viewModel.currentUserProfile.value?.displayName ?: "User",
-                    callerAvatar = viewModel.currentUserProfile.value?.profilePicUrl ?: "",
-                    receiverId = call.peerUid,
-                    receiverName = call.peerName,
-                    receiverAvatar = call.peerPhotoUrl,
-                    isVideo = call.callType == "VIDEO"
-                )
-            } else if (call.direction == "INCOMING" && callState == "Ringing...") {
-                viewModel.activeSimulatedCall.value = null
-                
-                callViewModel.handleIncomingCallRinging(
-                    existingCallId = call.callId,
-                    isVideo = call.callType == "VIDEO"
-                )
-                callViewModel.peerId = call.peerUid
-                callViewModel.peerName = call.peerName
-                callViewModel.peerAvatar = call.peerPhotoUrl
-                callViewModel.currentUserId = viewModel.currentUserId
-            }
-        }
-        
-        if (rtcCallStatus != "idle") {
-            androidx.compose.ui.window.Dialog(
-                onDismissRequest = {},
-                properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
-            ) {
-                if (callViewModel.isCaller && (rtcCallStatus == "calling" || rtcCallStatus == "ringing" || rtcCallStatus == "rejected" || rtcCallStatus == "timeout" || rtcCallStatus == "busy")) {
-                    com.example.ui.call.OutgoingCallScreen(
-                        viewModel = callViewModel,
-                        onCallEnded = { callViewModel.callId = ""; callViewModel.resetCall() }
-                    )
-                } else if (!callViewModel.isCaller && (rtcCallStatus == "ringing" || rtcCallStatus == "rejected")) {
-                    com.example.ui.call.IncomingCallScreen(
-                        viewModel = callViewModel,
-                        onAccept = { },
-                        onReject = { callViewModel.callId = ""; callViewModel.resetCall() }
-                    )
-                } else if (rtcCallStatus == "accepted" || rtcCallStatus == "ended") {
-                    com.example.ui.call.ActiveCallScreen(
-                        viewModel = callViewModel,
-                        onCallEnded = { callViewModel.callId = ""; callViewModel.resetCall() }
-                    )
-                }
-            }
-        }
-
         AnimatedVisibility(
             visible = networkStatus == NetworkStatus.Lost || networkStatus == NetworkStatus.Weak,
             enter = fadeIn() + androidx.compose.animation.slideInVertically(),
@@ -646,6 +600,21 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
+            }
+        }
+
+        // Stage 1 Audio/Video Calling UI Overlays with complete separation
+        activeCallSession?.let { session ->
+            if (session.callState == CallState.INCOMING_RINGING) {
+                IncomingCallOverlay(
+                    session = session,
+                    onAccept = { CallManager.acceptCall() },
+                    onDecline = { CallManager.declineCall() }
+                )
+            } else if (session.callType == CallType.VOICE) {
+                VoiceCallScreen(session = session)
+            } else {
+                VideoCallScreen(session = session)
             }
         }
     }

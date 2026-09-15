@@ -17,6 +17,7 @@ data class UserProfileDomainModel(
     @get:PropertyName("bioStatus") @set:PropertyName("bioStatus") var bioStatus: String = "",
     @get:PropertyName("profileUrl") @set:PropertyName("profileUrl") var profileUrl: String = "",
     @get:PropertyName("profilePicUrl") @set:PropertyName("profilePicUrl") var profilePicUrl: String = "",
+    @get:PropertyName("avatarUrl") @set:PropertyName("avatarUrl") var avatarUrl: String = "",
     @get:PropertyName("userCode") @set:PropertyName("userCode") var userCode: String = "",
     @get:PropertyName("plenxoId") @set:PropertyName("plenxoId") var plenxoId: String = "",
     @get:PropertyName("selectedRingId") @set:PropertyName("selectedRingId") var selectedRingId: String = "NONE",
@@ -35,6 +36,12 @@ data class UserProfileDomainModel(
         get() = bio.takeIf { it.isNotBlank() }
             ?: statusMessage.takeIf { it.isNotBlank() }
             ?: bioStatus.takeIf { it.isNotBlank() }
+            ?: ""
+
+    val effectiveAvatarUrl: String
+        get() = avatarUrl.takeIf { it.isNotBlank() }
+            ?: profilePicUrl.takeIf { it.isNotBlank() }
+            ?: profileUrl.takeIf { it.isNotBlank() }
             ?: ""
 }
 

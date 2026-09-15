@@ -150,7 +150,11 @@ fun ChatBubble(
                         }
                     }
                     "VIDEO" -> {
-                        val videoSource = message.localUri ?: message.mediaUrl
+                        val videoSource = if (!message.mediaUrl.isNullOrBlank()) {
+                            message.mediaUrl
+                        } else {
+                            message.localUri ?: ""
+                        }
                         val context = androidx.compose.ui.platform.LocalContext.current
                         Box(
                             modifier = Modifier
@@ -159,21 +163,29 @@ fun ChatBubble(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF0F172A))
                                 .clickable {
-                                    if (!videoSource.isNullOrEmpty()) {
+                                    if (videoSource.isNotBlank()) {
                                         try {
                                             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                                                 setDataAndType(Uri.parse(videoSource), "video/*")
                                                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                             }
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
-                                            android.widget.Toast.makeText(context, "Cannot play video: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                            try {
+                                                val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(videoSource)).apply {
+                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                context.startActivity(fallbackIntent)
+                                            } catch (e2: Exception) {
+                                                android.widget.Toast.makeText(context, "Cannot play video: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            if (!videoSource.isNullOrEmpty()) {
+                            if (videoSource.isNotBlank()) {
                                 AsyncImage(
                                     model = videoSource,
                                     contentDescription = "Video Thumbnail",
@@ -229,7 +241,10 @@ fun ChatBubble(
                                 .clickable {
                                     if (fileUrl.isNotBlank()) {
                                         try {
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(fileUrl))
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(fileUrl)).apply {
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
                                             android.widget.Toast.makeText(context, "Opening file link...", android.widget.Toast.LENGTH_SHORT).show()
@@ -281,7 +296,10 @@ fun ChatBubble(
                                 .clickable {
                                     if (fileUrl.isNotBlank()) {
                                         try {
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(fileUrl))
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(fileUrl)).apply {
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
                                             android.widget.Toast.makeText(context, "Opening document...", android.widget.Toast.LENGTH_SHORT).show()
@@ -314,9 +332,13 @@ fun ChatBubble(
                         }
                     }
                     "VOICE", "AUDIO", "VOICE_NOTE" -> {
-                        val audioUrl = message.localUri ?: message.mediaUrl
+                        val audioUrl = if (message.mediaUrl.isNotBlank() && (message.mediaUrl.startsWith("http://") || message.mediaUrl.startsWith("https://"))) {
+                            message.mediaUrl
+                        } else {
+                            message.localUri?.takeIf { it.isNotBlank() } ?: message.mediaUrl
+                        }
                         val context = androidx.compose.ui.platform.LocalContext.current
-                        val audioPlayerManager = remember(context) { com.example.media.AudioPlayerManager(context) }
+                        val audioPlayerManager = remember(context) { com.example.media.AudioPlayerManager.getInstance(context) }
                         VoiceNoteBubble(
                             audioUrl = audioUrl,
                             isSentByCurrentUser = isOutgoing,

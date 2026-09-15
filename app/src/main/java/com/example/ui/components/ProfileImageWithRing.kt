@@ -32,6 +32,7 @@ fun ProfileImageWithRing(
     profileRingId: String?,
     modifier: Modifier = Modifier,
     ringBorderWidth: Int = 5, // in dp
+    fallbackInitial: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     val ringId = profileRingId ?: "none"
@@ -71,26 +72,33 @@ fun ProfileImageWithRing(
                 .fillMaxSize()
                 .padding(imagePadding)
                 .clip(CircleShape)
-                .background(Color.LightGray.copy(alpha = 0.2f)),
+                .background(Color(0xFF1E293B)),
             contentAlignment = Alignment.Center
         ) {
-            if (!imageUrl.isNullOrEmpty()) {
+            if (!imageUrl.isNullOrEmpty() && (imageUrl.startsWith("http") || imageUrl.startsWith("content://") || imageUrl.startsWith("file://"))) {
                 AsyncImage(
                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                         .data(imageUrl)
                         .crossfade(true)
+                        .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                        .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                         .build(),
-                    placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery),
-                    error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
                     contentDescription = "Profile Picture",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
+                )
+            } else if (!fallbackInitial.isNullOrBlank()) {
+                Text(
+                    text = fallbackInitial.trim().take(1).uppercase(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = "Placeholder",
-                    tint = Color.Gray,
+                    tint = Color(0xFF94A3B8),
                     modifier = Modifier.fillMaxSize(0.6f)
                 )
             }

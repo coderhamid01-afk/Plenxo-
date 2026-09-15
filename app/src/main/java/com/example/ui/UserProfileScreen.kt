@@ -33,6 +33,9 @@ import com.example.model.User
 import com.example.ui.components.ProfileImageWithRing
 import com.example.util.getDocumentServerFirst
 import com.example.viewmodel.PlenxoViewModel
+import com.example.calling.CallManager
+import com.example.calling.model.CallType
+import com.example.ui.calling.rememberCallPermissionController
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -85,6 +88,7 @@ fun UserProfileScreen(
     var pendingRequestId by remember(userId, currentUid) { mutableStateOf<String?>(null) }
     var isActionLoading by remember(userId) { mutableStateOf(false) }
     var showQRBottomSheet by remember { mutableStateOf(false) }
+    val callPermissionController = rememberCallPermissionController()
 
     if (showQRBottomSheet) {
         val displayPlenxoId = userProfile?.plenxoId?.ifEmpty { userProfile?.userCode } ?: userProfile?.userCode ?: userId
@@ -429,10 +433,18 @@ fun UserProfileScreen(
                         testTag = "user_profile_call_action_button",
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            if (userId.isNotEmpty()) {
-                                viewModel.initiateCall(userId, "AUDIO")
-                            } else {
-                                Toast.makeText(context, "Cannot initiate call", Toast.LENGTH_SHORT).show()
+                            val targetName = userProfile?.displayName ?: "Plenxo User"
+                            val targetPic = userProfile?.profilePicUrl ?: ""
+                            val targetPlenxoId = userProfile?.plenxoId?.ifBlank { userProfile?.userCode.orEmpty() } ?: ""
+                            callPermissionController.startVoiceCallWithPermission {
+                                CallManager.startOutgoingCall(
+                                    peerUid = userId,
+                                    peerName = targetName,
+                                    peerAvatar = targetPic,
+                                    peerPlenxoId = targetPlenxoId,
+                                    callType = CallType.VOICE,
+                                    onSaveLog = { log -> viewModel.recordCallLog(log) }
+                                )
                             }
                         }
                     )
@@ -445,10 +457,18 @@ fun UserProfileScreen(
                         testTag = "user_profile_video_call_action_button",
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            if (userId.isNotEmpty()) {
-                                viewModel.initiateCall(userId, "VIDEO")
-                            } else {
-                                Toast.makeText(context, "Cannot initiate call", Toast.LENGTH_SHORT).show()
+                            val targetName = userProfile?.displayName ?: "Plenxo User"
+                            val targetPic = userProfile?.profilePicUrl ?: ""
+                            val targetPlenxoId = userProfile?.plenxoId?.ifBlank { userProfile?.userCode.orEmpty() } ?: ""
+                            callPermissionController.startVideoCallWithPermission {
+                                CallManager.startOutgoingCall(
+                                    peerUid = userId,
+                                    peerName = targetName,
+                                    peerAvatar = targetPic,
+                                    peerPlenxoId = targetPlenxoId,
+                                    callType = CallType.VIDEO,
+                                    onSaveLog = { log -> viewModel.recordCallLog(log) }
+                                )
                             }
                         }
                     )

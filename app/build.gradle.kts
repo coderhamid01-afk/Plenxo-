@@ -171,7 +171,7 @@ dependencies {
   implementation(libs.retrofit)
   implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
   implementation("com.google.zxing:core:3.5.3")
-  implementation(libs.webrtc)
+  implementation("io.getstream:stream-webrtc-android:1.2.0")
   
   // Firebase (Needed until migration is complete)
   implementation(platform(libs.firebase.bom))

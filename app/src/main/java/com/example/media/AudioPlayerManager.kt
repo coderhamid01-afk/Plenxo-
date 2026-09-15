@@ -3,6 +3,7 @@ package com.example.media
 import android.content.Context
 import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,19 @@ data class PlaybackState(
 )
 
 class AudioPlayerManager(private val context: Context) {
+
+    companion object {
+        private const val TAG = "AudioPlayerManager"
+
+        @Volatile
+        private var instance: AudioPlayerManager? = null
+
+        fun getInstance(context: Context): AudioPlayerManager {
+            return instance ?: synchronized(this) {
+                instance ?: AudioPlayerManager(context.applicationContext).also { instance = it }
+            }
+        }
+    }
 
     private var exoPlayer: ExoPlayer? = null
 
@@ -46,7 +60,7 @@ class AudioPlayerManager(private val context: Context) {
                 Player.STATE_READY -> {
                     val duration = exoPlayer?.duration ?: 0L
                     _playbackState.value = _playbackState.value.copy(
-                        totalDurationMs = if (duration > 0) duration else 0L
+                        totalDurationMs = if (duration > 0) duration else _playbackState.value.totalDurationMs
                     )
                 }
                 Player.STATE_ENDED -> {
@@ -63,6 +77,12 @@ class AudioPlayerManager(private val context: Context) {
                 }
             }
         }
+
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "Audio playback error: ${error.message}", error)
+            _playbackState.value = _playbackState.value.copy(isPlaying = false)
+            stopProgressPolling()
+        }
     }
 
     private fun ensurePlayerInitialized() {
@@ -74,10 +94,15 @@ class AudioPlayerManager(private val context: Context) {
     }
 
     /**
-     * Streams and plays target Catbox URL.
+     * Streams and plays target Catbox or local audio URL.
      * Stops any currently playing voice message before starting a new one.
      */
     fun playAudio(url: String) {
+        if (url.isBlank()) {
+            Log.w(TAG, "Cannot play audio with empty URL")
+            return
+        }
+
         ensurePlayerInitialized()
         val player = exoPlayer ?: return
 
@@ -99,10 +124,14 @@ class AudioPlayerManager(private val context: Context) {
                 currentUrl = url
             )
 
-            val mediaItem = MediaItem.fromUri(url)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.play()
+            try {
+                val mediaItem = MediaItem.fromUri(url)
+                player.setMediaItem(mediaItem)
+                player.prepare()
+                player.play()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start audio playback for $url", e)
+            }
         }
     }
 

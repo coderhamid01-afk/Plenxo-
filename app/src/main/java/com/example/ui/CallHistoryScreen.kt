@@ -3,22 +3,50 @@ package com.example.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CallMade
+import androidx.compose.material.icons.filled.CallMissed
+import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -26,14 +54,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.calling.CallManager
+import com.example.calling.model.CallType
 import com.example.model.CallLog
+import com.example.ui.calling.rememberCallPermissionController
 import com.example.ui.theme.PlenxoColors
 import com.example.ui.theme.PlenxoTypography
 import com.example.viewmodel.PlenxoViewModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val CyanAccent = Color(0xFF38BDF8)
+private val PurpleAccent = Color(0xFFA855F7)
+private val EmeraldSuccess = Color(0xFF10B981)
+private val CoralRed = Color(0xFFFF7B72)
+
 @Composable
 fun CallHistoryScreen(
     viewModel: PlenxoViewModel,
@@ -42,6 +78,7 @@ fun CallHistoryScreen(
 ) {
     val callLogs by viewModel.callLogs.collectAsState()
     var selectedLogForCall by remember { mutableStateOf<CallLog?>(null) }
+    val permissionController = rememberCallPermissionController()
 
     LaunchedEffect(Unit) {
         viewModel.startListeningForCallLogs()
@@ -93,7 +130,7 @@ fun CallHistoryScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Tapping on friends will allow you to make secure audio and video calls.",
+                            text = "Start high quality audio and video calls with your connected friends.",
                             color = Color.Gray,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center
@@ -108,10 +145,34 @@ fun CallHistoryScreen(
                     items(items = callLogs, key = { it.callId }) { log ->
                         CallLogItemRow(
                             log = log,
-                            onClick = { selectedLogForCall = log }
+                            onClick = { selectedLogForCall = log },
+                            onAudioCall = {
+                                permissionController.startVoiceCallWithPermission {
+                                    CallManager.startOutgoingCall(
+                                        peerUid = log.peerUid,
+                                        peerName = log.peerName,
+                                        peerAvatar = log.peerPhotoUrl,
+                                        peerPlenxoId = log.peerPlenxoId,
+                                        callType = CallType.VOICE,
+                                        onSaveLog = { newLog -> viewModel.recordCallLog(newLog) }
+                                    )
+                                }
+                            },
+                            onVideoCall = {
+                                permissionController.startVideoCallWithPermission {
+                                    CallManager.startOutgoingCall(
+                                        peerUid = log.peerUid,
+                                        peerName = log.peerName,
+                                        peerAvatar = log.peerPhotoUrl,
+                                        peerPlenxoId = log.peerPlenxoId,
+                                        callType = CallType.VIDEO,
+                                        onSaveLog = { newLog -> viewModel.recordCallLog(newLog) }
+                                    )
+                                }
+                            }
                         )
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 24.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp),
                             thickness = 0.5.dp,
                             color = PlenxoColors.Divider
                         )
@@ -120,7 +181,7 @@ fun CallHistoryScreen(
             }
         }
 
-        // Call Initiation Bottom Sheet/Dialog
+        // Call Initiation Dialog
         selectedLogForCall?.let { log ->
             AlertDialog(
                 onDismissRequest = { selectedLogForCall = null },
@@ -135,7 +196,7 @@ fun CallHistoryScreen(
                 },
                 text = {
                     Text(
-                        text = "Would you like to start a call with ${log.peerName} (@${log.peerPlenxoId.ifBlank { "PX-xxxxxx" }})?",
+                        text = "Choose call type to connect with ${log.peerName} (@${log.peerPlenxoId.ifBlank { "PX-xxxxxx" }}):",
                         color = Color.LightGray,
                         fontSize = 14.sp
                     )
@@ -147,24 +208,46 @@ fun CallHistoryScreen(
                     ) {
                         Button(
                             onClick = {
-                                viewModel.initiateCall(log.peerUid, "AUDIO")
+                                val currentLog = log
                                 selectedLogForCall = null
+                                permissionController.startVoiceCallWithPermission {
+                                    CallManager.startOutgoingCall(
+                                        peerUid = currentLog.peerUid,
+                                        peerName = currentLog.peerName,
+                                        peerAvatar = currentLog.peerPhotoUrl,
+                                        peerPlenxoId = currentLog.peerPlenxoId,
+                                        callType = CallType.VOICE,
+                                        onSaveLog = { newLog -> viewModel.recordCallLog(newLog) }
+                                    )
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = PlenxoColors.Primary),
-                            shape = RoundedCornerShape(20.dp)
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.testTag("dialog_start_voice_call_button")
                         ) {
                             Icon(Icons.Default.Call, contentDescription = "Audio Call", tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Audio", color = Color.White)
+                            Text("Voice", color = Color.White)
                         }
 
                         Button(
                             onClick = {
-                                viewModel.initiateCall(log.peerUid, "VIDEO")
+                                val currentLog = log
                                 selectedLogForCall = null
+                                permissionController.startVideoCallWithPermission {
+                                    CallManager.startOutgoingCall(
+                                        peerUid = currentLog.peerUid,
+                                        peerName = currentLog.peerName,
+                                        peerAvatar = currentLog.peerPhotoUrl,
+                                        peerPlenxoId = currentLog.peerPlenxoId,
+                                        callType = CallType.VIDEO,
+                                        onSaveLog = { newLog -> viewModel.recordCallLog(newLog) }
+                                    )
+                                }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2EA043)),
-                            shape = RoundedCornerShape(20.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.testTag("dialog_start_video_call_button")
                         ) {
                             Icon(Icons.Default.Videocam, contentDescription = "Video Call", tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -185,19 +268,23 @@ fun CallHistoryScreen(
 @Composable
 fun CallLogItemRow(
     log: CallLog,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onAudioCall: () -> Unit = {},
+    onVideoCall: () -> Unit = {}
 ) {
+    val isVideo = log.callType.equals("VIDEO", ignoreCase = true)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 24.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(50.dp)
                 .clip(CircleShape)
                 .background(Color(0xFF1E2230))
                 .border(1.dp, Color(0xFF30363D), CircleShape),
@@ -227,20 +314,53 @@ fun CallLogItemRow(
 
         Spacer(modifier = Modifier.width(14.dp))
 
+        // Peer Name & Direction + Timestamp
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = log.peerName,
-                style = PlenxoTypography.Body.copy(color = Color.White, fontWeight = FontWeight.Bold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Direction Indicator
+                Text(
+                    text = log.peerName,
+                    style = PlenxoTypography.Body.copy(color = Color.White, fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Voice / Video Badge
+                Surface(
+                    color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else CyanAccent.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
+                            contentDescription = if (isVideo) "Video" else "Voice",
+                            tint = if (isVideo) PurpleAccent else CyanAccent,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = if (isVideo) "Video" else "Voice",
+                            color = if (isVideo) PurpleAccent else CyanAccent,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Directional indicator & timestamp
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 val (directionIcon, directionColor) = when (log.direction) {
-                    "INCOMING" -> Icons.Default.CallReceived to Color(0xFF2EA043) // Green
-                    "OUTGOING" -> Icons.Default.CallMade to Color(0xFF58A6FF) // Blue
-                    else -> Icons.Default.CallMissed to Color(0xFFFF7B72) // Red
+                    "INCOMING" -> Icons.Default.CallReceived to EmeraldSuccess
+                    "OUTGOING" -> Icons.Default.CallMade to CyanAccent
+                    else -> Icons.Default.CallMissed to CoralRed
                 }
 
                 Icon(
@@ -250,29 +370,41 @@ fun CallLogItemRow(
                     modifier = Modifier.size(14.dp)
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
 
                 Text(
                     text = formatCallTimestamp(log.timestamp),
                     color = Color.Gray,
                     fontSize = 12.sp
                 )
+
+                if (log.direction != "MISSED" && log.durationSeconds > 0) {
+                    Text(
+                        text = " • ${formatDuration(log.durationSeconds)}",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
 
-        Column(horizontalAlignment = Alignment.End) {
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Direct Call Redial Action
+        IconButton(
+            onClick = {
+                if (isVideo) onVideoCall() else onAudioCall()
+            },
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Color(0x22FFFFFF))
+        ) {
             Icon(
-                imageVector = if (log.callType == "VIDEO") Icons.Default.Videocam else Icons.Default.Call,
-                contentDescription = log.callType,
-                tint = Color.LightGray,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (log.direction == "MISSED") "Missed" else formatDuration(log.durationSeconds),
-                color = if (log.direction == "MISSED") Color(0xFFFF7B72) else Color.LightGray,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
+                contentDescription = "Redial",
+                tint = if (isVideo) PurpleAccent else CyanAccent,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

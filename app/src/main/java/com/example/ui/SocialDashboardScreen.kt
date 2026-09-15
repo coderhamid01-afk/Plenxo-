@@ -64,7 +64,7 @@ fun SocialDashboardScreen(
                     val contextLocal = androidx.compose.ui.platform.LocalContext.current
                     val localRingId = com.example.util.SessionManager.getProfileRingId(contextLocal)
                     val userRingId = if (localRingId != "none") localRingId else (currentUserProfile?.profileRingId ?: "none")
-                    val userPic = currentUserProfile?.profilePicUrl ?: ""
+                    val userPic = currentUserProfile?.effectiveAvatarUrl ?: currentUserProfile?.profilePicUrl ?: ""
                     val displayName = currentUserProfile?.displayName?.takeIf { it.isNotBlank() } ?: "User"
 
                     IconButton(
@@ -292,15 +292,16 @@ fun ChatItemRow(chat: ChatRoom, recipientUser: User?, onClick: () -> Unit) {
                     .clip(CircleShape)
                     .background(PlenxoColors.Surface)
             ) {
-                if (recipientUser?.profilePicUrl?.startsWith("http") == true) {
+                val picUrl = recipientUser?.effectiveAvatarUrl ?: recipientUser?.profilePicUrl ?: ""
+                if (picUrl.isNotEmpty() && (picUrl.startsWith("http") || picUrl.startsWith("content://") || picUrl.startsWith("file://"))) {
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                            .data(recipientUser.profilePicUrl)
+                            .data(picUrl)
                             .crossfade(true)
+                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
                             .build(),
-                        placeholder = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_gallery),
-                        error = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_report_image),
-                        contentDescription = null,
+                        contentDescription = "User Avatar",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )

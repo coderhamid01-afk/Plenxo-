@@ -32,7 +32,7 @@ class VoiceNoteRepository {
         Log.d("VoiceNoteRepository", "Uploading voice note of size: ${audioFile.length()} bytes to Catbox...")
 
         // 1. Upload to Catbox
-        val directUrl = com.example.network.CatboxStorageManager.uploadVoiceNote(audioFile)
+        val directUrl = com.example.network.CatboxUploader.uploadVoiceNote(audioFile)
 
         if (directUrl.isBlank()) {
             throw Exception("Voice note upload succeeded, but returned an empty URL response.")
@@ -57,7 +57,7 @@ class VoiceNoteRepository {
                 "senderId" to currentUid,
                 "receiverId" to receiverId,
                 "messageText" to directUrl,
-                "messageType" to "VOICE",
+                "messageType" to "AUDIO",
                 "mediaUrl" to directUrl,
                 "timestamp" to now,
                 "status" to "SENT"

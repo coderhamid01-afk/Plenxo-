@@ -11,8 +11,9 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -116,35 +117,6 @@
             android:exported="false"
             android:theme="@style/Theme.MyApplication" />
 
-        <activity
-            android:name=".ui.CallActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name=".ui.ActiveCallActivity"
-            android:exported="false"
-            android:theme="@style/Theme.MyApplication" />
-
-        <activity
-            android:name=".ui.IncomingCallActivity"
-            android:exported="false"
-            android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:theme="@style/Theme.MyApplication"
-            android:launchMode="singleInstance"
-            android:excludeFromRecents="true" />
-
-        <service
-            android:name=".service.IncomingCallService"
-            android:exported="false"
-            android:foregroundServiceType="phoneCall|microphone" />
-
-        <service
-            android:name=".service.VoiceCallService"
-            android:exported="false"
-            android:foregroundServiceType="phoneCall|microphone|camera" />
-
         <receiver
             android:name=".service.DirectReplyReceiver"
             android:exported="false" />
@@ -166,6 +138,20 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
+
+        <activity
+            android:name=".ui.calling.IncomingCallActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MyApplication"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true" />
+
+        <service
+            android:name=".service.IncomingCallService"
+            android:foregroundServiceType="phoneCall|microphone|camera"
+            android:exported="false" />
 
         <activity
             android:name=".ui.DeepLinkHandlerActivity"

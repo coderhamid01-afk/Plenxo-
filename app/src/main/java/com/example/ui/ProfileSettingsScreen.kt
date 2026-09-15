@@ -240,30 +240,50 @@ fun ProfileSettingsScreen(
                     // Upload multipart image to https://catbox.moe/user/api.php with reqtype="fileupload", userhash="9522593a4a22790d1bf20a178"
                     val uploadedUrl = com.example.network.CatboxUploader.uploadImage(context, uri)
                     newlyUploadedAvatarUrl = uploadedUrl
-                    val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                    
+                    val uid = viewModel.currentUid
+                        .ifEmpty { weChatViewModel.currentUserId }
+                        .ifEmpty { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+                    
                     if (uid.isNotEmpty()) {
                         val fs = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        // Save returned https://files.catbox.moe/... string URL to Firestore avatarUrl and profilePicUrl
                         val map = mapOf(
                             "avatarUrl" to uploadedUrl,
                             "profilePicUrl" to uploadedUrl,
                             "avatar_url" to uploadedUrl,
                             "photoUrl" to uploadedUrl,
-                            "profileUrl" to uploadedUrl
+                            "profileUrl" to uploadedUrl,
+                            "profilePic" to uploadedUrl,
+                            "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
                         )
                         fs.collection("users").document(uid)
                             .set(map, com.google.firebase.firestore.SetOptions.merge())
-                        val curr = weChatViewModel.currentUserProfile.value
-                        if (curr != null) {
-                            weChatViewModel.currentUserProfile.value = curr.copy(
-                                profilePicUrl = uploadedUrl
-                            )
-                        }
                     }
+                    
+                    // Persist to local session cache
+                    try {
+                        com.example.util.SessionManager.saveLocalProfilePicUrl(
+                            context,
+                            profilePicUrl = uploadedUrl
+                        )
+                    } catch (e: Exception) {
+                        Log.w("ProfileSettingsScreen", "Failed to cache profile pic locally", e)
+                    }
+
+                    // Update currentUserProfile in weChatViewModel
+                    val curr = weChatViewModel.currentUserProfile.value
+                    if (curr != null) {
+                        weChatViewModel.currentUserProfile.value = curr.copy(
+                            profilePicUrl = uploadedUrl,
+                            avatarUrl = uploadedUrl
+                        )
+                    }
+                    
+                    viewModel.refreshProfile()
                     Toast.makeText(context, "Profile picture uploaded successfully!", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Log.e("ProfileSettingsScreen", "Catbox upload error: ${e.message}", e)
-                    Toast.makeText(context, "Failed to upload image to Catbox. Please try again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Failed to upload image: ${e.message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
                 } finally {
                     isAvatarUploading = false
                 }
@@ -385,7 +405,7 @@ fun ProfileSettingsScreen(
                     if (newBio.isNotBlank() && bioInput.isBlank()) {
                         bioInput = newBio
                     }
-                    val newPic = profile.profilePicUrl.ifBlank { profile.profileUrl }
+                    val newPic = profile.effectiveAvatarUrl.ifBlank { profile.profilePicUrl.ifBlank { profile.profileUrl } }
                     if (newPic.isNotBlank() && profileUrlInput.isBlank()) {
                         profileUrlInput = newPic
                     }
@@ -431,30 +451,30 @@ fun ProfileSettingsScreen(
                                         .background(cardBg)
                                         .border(3.dp, neonGlowBrush, CircleShape)
                                         .bounceClick {
-                                            val permission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                                Manifest.permission.READ_MEDIA_IMAGES
-                                            } else {
-                                                Manifest.permission.READ_EXTERNAL_STORAGE
-                                            }
-                                            if (ContextCompat.checkSelfPermission(contextLocal, permission) == PackageManager.PERMISSION_GRANTED) {
-                                                photoPickerLauncher.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                )
-                                            } else {
-                                                mediaPermissionLauncher.launch(permission)
-                                            }
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    val initialChar = nameInput.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "P"
+                                    val initialChar = nameInput.takeIf { it.isNotBlank() }?.take(1)?.uppercase()
+                                        ?: profile.resolvedDisplayName.takeIf { it.isNotBlank() }?.take(1)?.uppercase()
+                                        ?: "P"
                                     val fallbackGradient = Brush.linearGradient(
                                         listOf(Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4))
                                     )
 
-                                    if (profileUrlInput.isNotEmpty() && (profileUrlInput.startsWith("http") || profileUrlInput.startsWith("content://") || profileUrlInput.startsWith("file://"))) {
+                                    val effectiveAvatarUrl = newlyUploadedAvatarUrl
+                                        ?: profileUrlInput.takeIf { it.isNotBlank() }
+                                        ?: profile.avatarUrl.takeIf { it.isNotBlank() }
+                                        ?: profile.profilePicUrl.takeIf { it.isNotBlank() }
+                                        ?: profile.profileUrl.takeIf { it.isNotBlank() }
+                                        ?: ""
+
+                                    if (effectiveAvatarUrl.isNotEmpty() && (effectiveAvatarUrl.startsWith("http") || effectiveAvatarUrl.startsWith("content://") || effectiveAvatarUrl.startsWith("file://"))) {
                                         coil.compose.SubcomposeAsyncImage(
                                             model = ImageRequest.Builder(contextLocal)
-                                                .data(profileUrlInput)
+                                                .data(effectiveAvatarUrl)
                                                 .crossfade(true)
                                                 .diskCachePolicy(CachePolicy.ENABLED)
                                                 .memoryCachePolicy(CachePolicy.ENABLED)
@@ -467,11 +487,10 @@ fun ProfileSettingsScreen(
                                                     modifier = Modifier.fillMaxSize().background(fallbackGradient),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Text(
-                                                        text = initialChar,
-                                                        fontSize = 44.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color.White
+                                                    CircularProgressIndicator(
+                                                        color = Color.White,
+                                                        modifier = Modifier.size(28.dp),
+                                                        strokeWidth = 2.dp
                                                     )
                                                 }
                                             },
@@ -509,29 +528,59 @@ fun ProfileSettingsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.6f)),
+                                                .background(Color.Black.copy(alpha = 0.7f)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            CircularProgressIndicator(
-                                                color = accentBlue,
-                                                modifier = Modifier.size(36.dp)
-                                            )
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    color = Color(0xFF00E5FF),
+                                                    modifier = Modifier.size(32.dp),
+                                                    strokeWidth = 3.dp
+                                                )
+                                                Text(
+                                                    text = "Uploading...",
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                     
-                                    // Edit overlay
+                                    // Edit overlay bar at bottom of avatar circle
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.3f)),
-                                        contentAlignment = Alignment.BottomCenter
+                                            .fillMaxWidth()
+                                            .height(36.dp)
+                                            .align(Alignment.BottomCenter)
+                                            .background(Color.Black.copy(alpha = 0.55f))
+                                            .clickable {
+                                                photoPickerLauncher.launch(
+                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text(stringResource(R.string.str_edit),
-                                            color = Color.White,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CameraAlt,
+                                                contentDescription = "Edit Profile Picture",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.str_edit),
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }

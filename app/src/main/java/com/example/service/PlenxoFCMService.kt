@@ -19,6 +19,11 @@ import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.graphics.drawable.IconCompat
 import com.example.MainActivity
+import com.example.calling.CallManager
+import com.example.calling.model.CallSession
+import com.example.calling.model.CallState
+import com.example.calling.model.CallType
+import com.example.service.IncomingCallService
 import com.example.util.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -51,6 +56,11 @@ open class PlenxoFCMService : FirebaseMessagingService() {
         val chatId = data["chat_id"] ?: data["chatId"] ?: ""
         val avatarUrl = data["avatar_url"] ?: data["avatarUrl"] ?: data["sender_avatar"] ?: ""
         val type = data["type"] ?: "chat"
+
+        if (type == "call" || data.containsKey("callId")) {
+            handleIncomingCallPush(data)
+            return
+        }
 
         val title = remoteMessage.notification?.title ?: senderName
         val body = remoteMessage.notification?.body ?: messageText
@@ -216,6 +226,40 @@ open class PlenxoFCMService : FirebaseMessagingService() {
             Log.e(TAG, "Notification permission not granted: ${e.message}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to display notification: ${e.message}")
+        }
+    }
+
+    private fun handleIncomingCallPush(data: Map<String, String>) {
+        val callId = data["callId"] ?: return
+        val callerUid = data["callerUid"] ?: data["senderId"] ?: ""
+        val callerName = data["callerName"] ?: "Unknown Caller"
+        val callerAvatar = data["callerAvatar"] ?: ""
+        val plenxoId = data["plenxoId"] ?: ""
+        val callTypeStr = data["callType"] ?: "VOICE"
+        
+        val callType = if (callTypeStr.equals("VIDEO", ignoreCase = true)) CallType.VIDEO else CallType.VOICE
+
+        CallManager.triggerIncomingCall(
+            callId = callId,
+            peerUid = callerUid,
+            peerName = callerName,
+            peerAvatar = callerAvatar,
+            peerPlenxoId = plenxoId,
+            callType = callType
+        )
+
+        // Start IncomingCallService for Lock-Screen Notification
+        val intent = Intent(this, IncomingCallService::class.java).apply {
+            action = IncomingCallService.ACTION_START_INCOMING_CALL
+            putExtra(IncomingCallService.EXTRA_CALL_ID, callId)
+            putExtra(IncomingCallService.EXTRA_CALLER_NAME, callerName)
+            putExtra(IncomingCallService.EXTRA_CALL_TYPE, callType.name)
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
         }
     }
 

@@ -220,6 +220,7 @@ data class UserProfile(
     @get:PropertyName("name") @set:PropertyName("name") var name: String = "",
     @get:PropertyName("userCode") @set:PropertyName("userCode") var userCode: String = "",
     @get:PropertyName("profilePicUrl") @set:PropertyName("profilePicUrl") var profilePicUrl: String = "",
+    @get:PropertyName("avatarUrl") @set:PropertyName("avatarUrl") var avatarUrl: String = "",
     @get:PropertyName("statusMessage") @set:PropertyName("statusMessage") var statusMessage: String = "",
     @get:PropertyName("bio") @set:PropertyName("bio") var bio: String = "",
     @get:PropertyName("bioStatus") @set:PropertyName("bioStatus") var bioStatus: String = "",
@@ -258,6 +259,51 @@ data class UserProfile(
             statusMessage = b
         }
     }
+
+    @PropertyName("avatar_url")
+    fun setAvatarUrlSnake(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("photoUrl")
+    fun setPhotoUrl(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("profilePic")
+    fun setProfilePic(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    @PropertyName("profileUrl")
+    fun setProfileUrl(url: String) {
+        if (avatarUrl.isBlank() && url.isNotBlank()) {
+            avatarUrl = url
+        }
+        if (profilePicUrl.isBlank() && url.isNotBlank()) {
+            profilePicUrl = url
+        }
+    }
+
+    val effectiveAvatarUrl: String
+        get() = avatarUrl.takeIf { it.isNotBlank() }
+            ?: profilePicUrl.takeIf { it.isNotBlank() }
+            ?: ""
 }
 
 fun UserProfile.toUserModel(): UserModel = UserModel(

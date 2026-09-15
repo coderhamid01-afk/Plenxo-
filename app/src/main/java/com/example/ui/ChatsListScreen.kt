@@ -365,7 +365,8 @@ fun ChatsListScreen(
                         val contextLocal = LocalContext.current
                         val localRingId = com.example.util.SessionManager.getProfileRingId(contextLocal)
                         val userRingId = if (localRingId != "none") localRingId else (currentUserProfile?.profileRingId ?: "none")
-                        val displayAvatarUrl = currentUserProfile?.profilePicUrl?.takeIf { it.isNotEmpty() }
+                        val displayAvatarUrl = currentUserProfile?.avatarUrl?.takeIf { it.isNotBlank() }
+                            ?: currentUserProfile?.profilePicUrl?.takeIf { it.isNotBlank() }
                             ?: galleryImageUriString?.takeIf { it.isNotEmpty() }
 
                         Box(
@@ -899,7 +900,7 @@ fun ChatsListScreen(
                                     chat = chat,
                                     recipientName = displayName,
                                     plenxoId = rawPlenxoId,
-                                    profilePicUrl = recipientUser?.profilePicUrl ?: "",
+                                    profilePicUrl = recipientUser?.effectiveAvatarUrl ?: recipientUser?.profilePicUrl ?: "",
                                     profileRingId = recipientUser?.profileRingId ?: "none",
                                     unreadCount = unreadCount,
                                     primaryColor = primaryColor,

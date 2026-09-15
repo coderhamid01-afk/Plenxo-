@@ -97,17 +97,6 @@ sealed class DeepLinkResolutionState {
     data class InvalidOrExpired(val easyMessage: String) : DeepLinkResolutionState()
 }
 
-data class CallSession(
-    val callId: String = "",
-    val callerId: String = "",
-    val callerName: String = "",
-    val callerPic: String = "",
-    val receiverId: String = "",
-    val type: String = "audio",
-    val status: String = "ringing",
-    val timestamp: Long = 0L
-)
-
 enum class PlenxoScreen {
     PLACEHOLDER_ENTRY,
     SIGN_UP,
@@ -181,11 +170,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
     // Call Log State Flows
     val callLogs = MutableStateFlow<List<com.example.model.CallLog>>(emptyList())
     private var callLogsListener: com.google.firebase.firestore.ListenerRegistration? = null
-    val activeSimulatedCall = MutableStateFlow<com.example.model.CallLog?>(null)
-    val simulatedCallState = MutableStateFlow("")
-    val simulatedCallDuration = MutableStateFlow(0L)
-    private var simulatedCallJob: kotlinx.coroutines.Job? = null
-
 
     // Onboarding / Profile States
     val selectedTheme = MutableStateFlow("Blue") // Choices: "Red", "Blue", "Purple", "Black", "Golden"
@@ -412,7 +396,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
     fun observeCurrentUserProfile() {
         currentUserProfileListener?.remove()
-        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        val uid = currentUserId
         if (uid.isEmpty()) return
 
         currentUserProfileListener = firestore.collection("users").document(uid)
@@ -436,14 +420,14 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                     ?: (data["about"] as? String)
                     ?: (data["status"] as? String)
                     ?: ""
-                val resolvedPic = (data["profilePicUrl"] as? String)
-                    ?: (data["profilePic"] as? String)
-                    ?: (data["avatarUrl"] as? String)
-                    ?: (data["avatar_url"] as? String)
-                    ?: (data["photoUrl"] as? String)
-                    ?: (data["photo_url"] as? String)
-                    ?: (data["profileUrl"] as? String)
-                    ?: (data["current_profile_pic_url"] as? String)
+                val resolvedPic = (data["avatarUrl"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["profilePicUrl"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["avatar_url"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["photoUrl"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["photo_url"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["profileUrl"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["profilePic"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: (data["current_profile_pic_url"] as? String)?.takeIf { it.isNotBlank() }
                     ?: ""
                 val resolvedRing = (data["selectedRingId"] as? String)
                     ?: (data["profileRingId"] as? String)
@@ -470,6 +454,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                     statusMessage = resolvedBio.ifEmpty { current?.statusMessage ?: "" },
                     bio = resolvedBio.ifEmpty { current?.bio ?: "" },
                     profilePicUrl = resolvedPic.ifEmpty { current?.profilePicUrl ?: "" },
+                    avatarUrl = resolvedPic.ifEmpty { current?.avatarUrl ?: "" },
                     profileRingId = resolvedRing.ifEmpty { current?.profileRingId ?: "none" },
                     userCode = resolvedCode.ifEmpty { current?.userCode ?: "" },
                     plenxoId = resolvedPlenxoId.ifEmpty { current?.plenxoId ?: "" }
@@ -1010,12 +995,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
     // Combine chats with contactsSet so that chats are filtered to only show those whose recipient is in our contacts list
     val chats: StateFlow<List<ChatRoom>> = _chats.asStateFlow()
-
-    val activeCall = MutableStateFlow<CallSession?>(null)
-    private var callListener: ListenerRegistration? = null
-    private var outgoingCallListener: ListenerRegistration? = null
-    private var outgoingCallSignalingManager: com.example.webrtc.CallSignalingManager? = null
-    private var incomingCallSignalingManager: com.example.webrtc.CallSignalingManager? = null
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
@@ -2204,7 +2183,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         if (uid.isEmpty()) return
         
         callLogsListener?.remove()
-        callLogsListener = firestore.collection("users").document(uid).collection("call_logs")
+        callLogsListener = firestore.collection("users").document(uid).collection("call_history")
             .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -2218,170 +2197,36 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             }
     }
 
-    fun initiateCall(peerUid: String, callType: String) {
+    fun recordCallLog(log: com.example.model.CallLog) {
         val uid = currentUserId
         if (uid.isEmpty()) return
-        
-        // 1. Verify friend connection
-        val chat = chats.value.find { it.participantUids.contains(peerUid) }
-        if (chat == null) {
-            _errorMessage.value = "You can only call connected friends."
-            return
-        }
-
+        val myProfile = currentUserProfile.value
+        val myName = myProfile?.displayName ?: "Plenxo User"
+        val myPic = myProfile?.profilePicUrl ?: ""
+        val myPlenxoId = myProfile?.plenxoId ?: ""
         viewModelScope.launch {
             try {
-                // Get peer user info
-                val peerDoc = firestore.collection("users").document(peerUid).get().await()
-                val peerName = peerDoc.getString("displayName") ?: "User"
-                val peerPhoto = peerDoc.getString("profilePicUrl") ?: ""
-                val peerPlenxoId = peerDoc.getString("plenxoId") ?: ""
-
-                // Get current user info
-                val myDoc = firestore.collection("users").document(uid).get().await()
-                val myName = myDoc.getString("displayName") ?: "User"
-                val myPhoto = myDoc.getString("profilePicUrl") ?: ""
-                val myPlenxoId = myDoc.getString("plenxoId") ?: ""
-
-                val callId = java.util.UUID.randomUUID().toString()
-                val timestamp = System.currentTimeMillis()
-
-                val outgoingLog = com.example.model.CallLog(
-                    callId = callId,
-                    peerUid = peerUid,
-                    peerName = peerName,
-                    peerPhotoUrl = peerPhoto,
-                    peerPlenxoId = peerPlenxoId,
-                    callType = callType,
-                    direction = "OUTGOING",
-                    timestamp = timestamp,
-                    durationSeconds = 0L
-                )
-
-                activeSimulatedCall.value = outgoingLog
-                simulatedCallState.value = "Calling..."
-                simulatedCallDuration.value = 0L
-
-                // Setup real signaling
-                val signaling = com.example.webrtc.CallSignalingManager(
-                    callId = callId,
-                    callerUid = uid,
-                    receiverUid = peerUid,
-                    listener = object : com.example.webrtc.CallSignalingManager.SignalingListener {
-                        override fun onCallRinging(senderUid: String) {
-                            simulatedCallState.value = "Ringing..."
-                        }
-                        override fun onCallAccepted(senderUid: String) {
-                            simulatedCallState.value = "Connected"
-                            // Start real timer
-                            simulatedCallJob?.cancel()
-                            simulatedCallJob = viewModelScope.launch {
-                                while (activeSimulatedCall.value != null) {
-                                    kotlinx.coroutines.delay(1000)
-                                    simulatedCallDuration.value += 1
-                                }
-                            }
-                        }
-                        override fun onCallReject(senderUid: String) {
-                            activeSimulatedCall.value = null
-                            simulatedCallJob?.cancel()
-                            simulatedCallState.value = "Rejected"
-                        }
-                        override fun onCallBusy(senderUid: String) {
-                            activeSimulatedCall.value = null
-                            simulatedCallJob?.cancel()
-                            simulatedCallState.value = "Busy"
-                        }
-                        override fun onCallEnd(senderUid: String) {
-                            activeSimulatedCall.value = null
-                            simulatedCallJob?.cancel()
-                            simulatedCallState.value = "Ended"
-                        }
-                    }
-                )
-                outgoingCallSignalingManager = signaling
-                signaling.sendOffer("sdp_offer_dummy", callType)
-                signaling.startListening()
-
-            } catch (e: Exception) {
-                Log.e("PlenxoViewModel", "Failed to initiate call: ${e.message}", e)
-                _errorMessage.value = "Failed to start call."
-            }
-        }
-    }
-
-    fun endActiveCall(isMissed: Boolean = false) {
-        val call = activeSimulatedCall.value ?: return
-        val duration = simulatedCallDuration.value
-        simulatedCallJob?.cancel()
-        activeSimulatedCall.value = null
-        simulatedCallState.value = "Ended"
-
-        val uid = currentUserId
-        if (uid.isEmpty()) return
-
-        // Signaling updates
-        if (call.direction == "OUTGOING") {
-            outgoingCallSignalingManager?.sendEnd()
-            outgoingCallSignalingManager?.cleanup()
-            outgoingCallSignalingManager = null
-        } else {
-            if (duration == 0L) {
-                incomingCallSignalingManager?.sendReject()
-            } else {
-                incomingCallSignalingManager?.sendEnd()
-            }
-            incomingCallSignalingManager?.cleanup()
-            incomingCallSignalingManager = null
-        }
-
-        viewModelScope.launch {
-            try {
-                val finalDuration = if (isMissed) 0L else duration
-                val directionText = if (isMissed) "MISSED" else call.direction
-
-                // Save outgoing/incoming log for current user
-                val userLog = call.copy(durationSeconds = finalDuration, direction = directionText)
                 firestore.collection("users").document(uid)
-                    .collection("call_logs").document(call.callId).set(userLog).await()
+                    .collection("call_history").document(log.callId).set(log).await()
 
-                // Save incoming/missed log for peer user
-                val myDoc = firestore.collection("users").document(uid).get().await()
-                val myName = myDoc.getString("displayName") ?: "User"
-                val myPhoto = myDoc.getString("profilePicUrl") ?: ""
-                val myPlenxoId = myDoc.getString("plenxoId") ?: ""
-
-                val peerLog = com.example.model.CallLog(
-                    callId = call.callId,
-                    peerUid = uid,
-                    peerName = myName,
-                    peerPhotoUrl = myPhoto,
-                    peerPlenxoId = myPlenxoId,
-                    callType = call.callType,
-                    direction = if (isMissed) "MISSED" else if (call.direction == "OUTGOING") "INCOMING" else "OUTGOING",
-                    timestamp = call.timestamp,
-                    durationSeconds = finalDuration
-                )
-                firestore.collection("users").document(call.peerUid)
-                    .collection("call_logs").document(call.callId).set(peerLog).await()
-
+                if (log.peerUid.isNotEmpty()) {
+                    val peerDirection = when (log.direction) {
+                        "OUTGOING" -> "INCOMING"
+                        "INCOMING" -> "OUTGOING"
+                        else -> "MISSED"
+                    }
+                    val peerLog = log.copy(
+                        peerUid = uid,
+                        peerName = myName,
+                        peerPhotoUrl = myPic,
+                        peerPlenxoId = myPlenxoId,
+                        direction = peerDirection
+                    )
+                    firestore.collection("users").document(log.peerUid)
+                        .collection("call_history").document(log.callId).set(peerLog).await()
+                }
             } catch (e: Exception) {
-                Log.e("PlenxoViewModel", "Failed to save call logs: ${e.message}", e)
-            }
-        }
-    }
-
-    fun acceptIncomingCall() {
-        val call = activeSimulatedCall.value ?: return
-        simulatedCallState.value = "Connected"
-        
-        incomingCallSignalingManager?.sendAnswer("sdp_answer_dummy")
-        
-        simulatedCallJob?.cancel()
-        simulatedCallJob = viewModelScope.launch {
-            while (activeSimulatedCall.value != null) {
-                kotlinx.coroutines.delay(1000)
-                simulatedCallDuration.value += 1
+                Log.e("PlenxoViewModel", "Failed to record call log: ${e.message}", e)
             }
         }
     }
@@ -4337,66 +4182,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         startListeningToContacts()
         observeConnectedFriendsAndRequests()
         
-        // Listen for incoming calls
-        callListener?.remove()
-        callListener = firestore.collection("calls")
-            .whereEqualTo("receiverUid", uid)
-            .whereEqualTo("status", "RINGING")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null) return@addSnapshotListener
-                val doc = snapshot.documents.firstOrNull() ?: return@addSnapshotListener
-                val callId = doc.id
-                val callerUid = doc.getString("callerUid") ?: ""
-                val callType = doc.getString("callType") ?: "AUDIO"
-                
-                // Show incoming call if we don't have an active call already
-                if (activeSimulatedCall.value == null && callerUid.isNotEmpty()) {
-                    viewModelScope.launch {
-                        val callerDoc = firestore.collection("users").document(callerUid).get().await()
-                        val callerName = callerDoc.getString("displayName") ?: "User"
-                        val callerPhoto = callerDoc.getString("profilePicUrl") ?: ""
-                        val callerPlenxoId = callerDoc.getString("plenxoId") ?: ""
-                        
-                        val incomingLog = com.example.model.CallLog(
-                            callId = callId,
-                            peerUid = callerUid,
-                            peerName = callerName,
-                            peerPhotoUrl = callerPhoto,
-                            peerPlenxoId = callerPlenxoId,
-                            callType = callType,
-                            direction = "INCOMING",
-                            timestamp = System.currentTimeMillis(),
-                            durationSeconds = 0L
-                        )
-                        activeSimulatedCall.value = incomingLog
-                        simulatedCallState.value = "Ringing..."
-                        simulatedCallDuration.value = 0L
-                        
-                        // Setup incoming signaling listener
-                        incomingCallSignalingManager?.cleanup()
-                        val signaling = com.example.webrtc.CallSignalingManager(
-                            callId = callId,
-                            callerUid = callerUid,
-                            receiverUid = uid,
-                            listener = object : com.example.webrtc.CallSignalingManager.SignalingListener {
-                                override fun onCallEnd(senderUid: String) {
-                                    activeSimulatedCall.value = null
-                                    simulatedCallJob?.cancel()
-                                    simulatedCallState.value = "Ended"
-                                }
-                                override fun onCallReject(senderUid: String) {
-                                    activeSimulatedCall.value = null
-                                    simulatedCallJob?.cancel()
-                                    simulatedCallState.value = "Ended"
-                                }
-                            }
-                        )
-                        incomingCallSignalingManager = signaling
-                        signaling.startListening()
-                    }
-                }
-            }
-
         chatsListener?.cancel()
         chatsListener = viewModelScope.launch {
             var chatsFromChatsCol = emptyList<ChatRoom>()
@@ -4623,14 +4408,16 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                             val name = userDoc.getString("displayName")
                                 ?: userDoc.getString("name")
                                 ?: "Plenxo User"
-                            val pic = userDoc.getString("profilePic")
-                                ?: userDoc.getString("profilePicUrl")
-                                ?: userDoc.getString("photoUrl")
+                            val pic = userDoc.getString("avatarUrl")?.takeIf { it.isNotBlank() }
+                                ?: userDoc.getString("profilePicUrl")?.takeIf { it.isNotBlank() }
+                                ?: userDoc.getString("avatar_url")?.takeIf { it.isNotBlank() }
+                                ?: userDoc.getString("profilePic")?.takeIf { it.isNotBlank() }
+                                ?: userDoc.getString("photoUrl")?.takeIf { it.isNotBlank() }
                                 ?: ""
                             val ringId = userDoc.getString("profileRingId") ?: "none"
                             val userCode = userDoc.getString("userCode") ?: userDoc.getString("plenxoId") ?: ""
                             val plenxoId = userDoc.getString("plenxoId") ?: userDoc.getString("userCode") ?: ""
-                            user = User(uid = uid, displayName = name, profilePicUrl = pic, profileRingId = ringId, userCode = userCode, plenxoId = plenxoId)
+                            user = User(uid = uid, displayName = name, profilePicUrl = pic, avatarUrl = pic, profileRingId = ringId, userCode = userCode, plenxoId = plenxoId)
                         }
                     }
                     if (user == null) {
@@ -5692,7 +5479,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             senderId = senderId,
             receiverId = receiverId,
             messageText = "🎤 Voice Note",
-            messageType = "VOICE",
+            messageType = "AUDIO",
             localUri = voiceUri.toString(),
             mediaUrl = voiceUri.toString(),
             timestamp = System.currentTimeMillis(),
@@ -5724,7 +5511,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                     senderId = senderId,
                     receiverId = receiverId,
                     messageText = downloadUrl,
-                    messageType = "VOICE",
+                    messageType = "AUDIO",
                     mediaUrl = downloadUrl,
                     timestamp = System.currentTimeMillis(),
                     status = "SENT"
@@ -6060,9 +5847,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             Log.e("Plenxo", "Failed to release voicePlayer", e)
         }
         stopAudio()
-        callListener?.remove()
-        outgoingCallSignalingManager?.cleanup()
-        incomingCallSignalingManager?.cleanup()
         chatsListener?.cancel()
         messagesListener?.cancel()
         messagesJob?.cancel()

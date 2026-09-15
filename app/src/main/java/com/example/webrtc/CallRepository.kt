@@ -1,138 +1,275 @@
 package com.example.webrtc
 
 import android.util.Log
+import com.example.calling.model.CallType
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.tasks.await
 import org.webrtc.IceCandidate
-import org.webrtc.SessionDescription
 
-class CallRepository {
-    private val db = FirebaseFirestore.getInstance()
-    private var callListener: ListenerRegistration? = null
-    private var candidateListener: ListenerRegistration? = null
+/**
+ * CallRepository manages real-time Firestore signaling under /calls/{callId}
+ * including SDP Offer/Answer exchange and ICE candidate streaming.
+ */
+class CallRepository(private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()) {
+    private val TAG = "CallRepository"
 
-    interface CallSignalingListener {
-        fun onOfferReceived(sdp: SessionDescription)
-        fun onAnswerReceived(sdp: SessionDescription)
-        fun onIceCandidateReceived(iceCandidate: IceCandidate)
-        fun onCallStatusChanged(status: String)
-    }
+    private var callDocListener: ListenerRegistration? = null
+    private var candidatesListener: ListenerRegistration? = null
+    private var incomingCallsListener: ListenerRegistration? = null
 
-    fun startCall(
-        callId: String, 
-        callerId: String, 
-        callerName: String, 
+    /**
+     * Caller creates the call document in Firestore.
+     */
+    suspend fun createCallSession(
+        callId: String,
+        callerUid: String,
+        callerName: String,
         callerAvatar: String,
-        receiverId: String, 
-        receiverName: String, 
-        receiverAvatar: String, 
-        callType: String
-    ) {
-        val callData = mapOf(
-            "callId" to callId,
-            "callerUid" to callerId,
-            "callerName" to callerName,
-            "callerAvatar" to callerAvatar,
-            "receiverUid" to receiverId,
-            "receiverName" to receiverName,
-            "receiverAvatar" to receiverAvatar,
-            "callType" to callType,
-            "status" to "RINGING",
-            "createdAt" to System.currentTimeMillis()
-        )
-        db.collection("calls").document(callId).set(callData)
+        callerPlenxoId: String,
+        receiverUid: String,
+        receiverName: String,
+        receiverAvatar: String,
+        receiverPlenxoId: String,
+        callType: CallType
+    ): Boolean {
+        return try {
+            val callData = hashMapOf(
+                "callId" to callId,
+                "callerUid" to callerUid,
+                "callerName" to callerName,
+                "callerAvatar" to callerAvatar,
+                "callerPlenxoId" to callerPlenxoId,
+                "receiverUid" to receiverUid,
+                "receiverName" to receiverName,
+                "receiverAvatar" to receiverAvatar,
+                "receiverPlenxoId" to receiverPlenxoId,
+                "callType" to callType.name,
+                "status" to "CALLING",
+                "createdAt" to System.currentTimeMillis()
+            )
+            firestore.collection("calls").document(callId).set(callData).await()
+            Log.d(TAG, "Call session created in Firestore: $callId")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating call session: ${e.message}", e)
+            false
+        }
     }
 
-    fun subscribeToCallEvents(callId: String, isCaller: Boolean, listener: CallSignalingListener) {
-        callListener = db.collection("calls").document(callId)
+    /**
+     * Caller sends SDP Offer.
+     */
+    suspend fun sendOffer(callId: String, offerSdp: String): Boolean {
+        return try {
+            val offerMap = mapOf(
+                "type" to "OFFER",
+                "sdp" to offerSdp
+            )
+            firestore.collection("calls").document(callId)
+                .update("offer", offerMap)
+                .await()
+            Log.d(TAG, "SDP offer saved in /calls/$callId")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving SDP offer: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Receiver sends SDP Answer.
+     */
+    suspend fun sendAnswer(callId: String, answerSdp: String): Boolean {
+        return try {
+            val answerMap = mapOf(
+                "type" to "ANSWER",
+                "sdp" to answerSdp
+            )
+            firestore.collection("calls").document(callId)
+                .update(
+                    mapOf(
+                        "answer" to answerMap,
+                        "status" to "CONNECTED"
+                    )
+                ).await()
+            Log.d(TAG, "SDP answer saved in /calls/$callId")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving SDP answer: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Caller listens for SDP Answer from Receiver.
+     */
+    fun listenForAnswer(
+        callId: String,
+        onAnswerReceived: (String) -> Unit,
+        onStatusChanged: (String) -> Unit
+    ) {
+        callDocListener?.remove()
+        callDocListener = firestore.collection("calls").document(callId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("CallRepo", "Listen failed.", error)
+                    Log.e(TAG, "Error listening for answer: ${error.message}")
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null && snapshot.exists()) {
                     val status = snapshot.getString("status") ?: ""
-                    listener.onCallStatusChanged(status)
+                    onStatusChanged(status)
 
-                    if (!isCaller && status.equals("calling", true) || status.equals("ringing", true)) {
-                        val offerStr = snapshot.getString("offer")
-                        if (!offerStr.isNullOrEmpty()) {
-                            listener.onOfferReceived(SessionDescription(SessionDescription.Type.OFFER, offerStr))
-                        }
-                    } else if (isCaller && status.equals("accepted", true)) {
-                        val answerStr = snapshot.getString("answer")
-                        if (!answerStr.isNullOrEmpty()) {
-                            listener.onAnswerReceived(SessionDescription(SessionDescription.Type.ANSWER, answerStr))
-                        }
-                    }
-                }
-            }
-
-        val collectionName = if (isCaller) "receiverCandidates" else "callerCandidates"
-        candidateListener = db.collection("calls").document(callId).collection(collectionName)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                snapshot?.documentChanges?.forEach { change ->
-                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                        val data = change.document.data
-                        val candidate = IceCandidate(
-                            data["sdpMid"] as String,
-                            (data["sdpMLineIndex"] as Long).toInt(),
-                            data["sdpCandidate"] as String
-                        )
-                        listener.onIceCandidateReceived(candidate)
+                    @Suppress("UNCHECKED_CAST")
+                    val answer = snapshot.get("answer") as? Map<String, Any?>
+                    val sdp = answer?.get("sdp") as? String
+                    if (!sdp.isNullOrBlank()) {
+                        Log.d(TAG, "Remote answer received for call: $callId")
+                        onAnswerReceived(sdp)
                     }
                 }
             }
     }
 
-    fun sendOffer(callId: String, sdp: SessionDescription) {
-        db.collection("calls").document(callId).update("offer", sdp.description)
-    }
-
-    fun sendAnswer(callId: String, sdp: SessionDescription) {
-        db.collection("calls").document(callId).update("answer", sdp.description)
-    }
-
-    fun sendIceCandidate(callId: String, isCaller: Boolean, iceCandidate: IceCandidate) {
-        val collectionName = if (isCaller) "callerCandidates" else "receiverCandidates"
-        val candidateMap = mapOf(
-            "sdpMid" to iceCandidate.sdpMid,
-            "sdpMLineIndex" to iceCandidate.sdpMLineIndex,
-            "sdpCandidate" to iceCandidate.sdp
-        )
-        db.collection("calls").document(callId).collection(collectionName).add(candidateMap)
-    }
-
-    fun updateCallStatus(callId: String, status: String) {
-        val updateMap = mutableMapOf<String, Any>("status" to status)
-        if (status.equals("accepted", true)) {
-            updateMap["startedAt"] = System.currentTimeMillis()
-        } else if (status == "ended" || status == "rejected" || status == "timeout" || status == "busy") {
-            updateMap["endedAt"] = System.currentTimeMillis()
-        }
-        db.collection("calls").document(callId).update(updateMap)
-    }
-    
-    fun logCallHistory(
-        callerId: String, 
-        receiverId: String, 
-        callData: Map<String, Any>
+    /**
+     * Receiver listens for call document changes (e.g. caller cancels).
+     */
+    fun listenToCallDocument(
+        callId: String,
+        onStatusChanged: (String) -> Unit
     ) {
-        val callerLog = callData.toMutableMap()
-        callerLog["peerId"] = receiverId
-        // The peer details should be mapped properly in the viewModel before passing
-        db.collection("users").document(callerId).collection("call_history").add(callerLog)
-        
-        val receiverLog = callData.toMutableMap()
-        receiverLog["peerId"] = callerId
-        db.collection("users").document(receiverId).collection("call_history").add(receiverLog)
+        callDocListener?.remove()
+        callDocListener = firestore.collection("calls").document(callId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                val status = snapshot.getString("status") ?: ""
+                onStatusChanged(status)
+            }
     }
 
-    fun cleanup() {
-        callListener?.remove()
-        candidateListener?.remove()
+    /**
+     * Stream gathered local ICE candidate to Firestore.
+     */
+    fun sendIceCandidate(callId: String, candidate: IceCandidate, isCaller: Boolean) {
+        val targetCollection = if (isCaller) "callerCandidates" else "receiverCandidates"
+        val candidateData = hashMapOf(
+            "sdpMid" to candidate.sdpMid,
+            "sdpMLineIndex" to candidate.sdpMLineIndex,
+            "sdp" to candidate.sdp,
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        firestore.collection("calls").document(callId)
+            .collection(targetCollection)
+            .add(candidateData)
+            .addOnSuccessListener {
+                Log.d(TAG, "Sent ICE candidate to $targetCollection for call $callId")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to send ICE candidate: ${e.message}")
+            }
+    }
+
+    /**
+     * Listen for remote ICE candidates in real time.
+     */
+    fun listenForRemoteIceCandidates(
+        callId: String,
+        isCaller: Boolean,
+        onCandidateReceived: (IceCandidate) -> Unit
+    ) {
+        // If we are caller, listen to receiverCandidates; if receiver, listen to callerCandidates
+        val targetCollection = if (isCaller) "receiverCandidates" else "callerCandidates"
+        candidatesListener?.remove()
+
+        val processedCandidateIds = mutableSetOf<String>()
+
+        candidatesListener = firestore.collection("calls").document(callId)
+            .collection(targetCollection)
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening for ICE candidates: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                snapshots?.documentChanges?.forEach { change ->
+                    val doc = change.document
+                    if (!processedCandidateIds.contains(doc.id)) {
+                        processedCandidateIds.add(doc.id)
+                        val sdpMid = doc.getString("sdpMid") ?: ""
+                        val sdpMLineIndex = doc.getLong("sdpMLineIndex")?.toInt() ?: 0
+                        val sdp = doc.getString("sdp") ?: ""
+
+                        if (sdp.isNotEmpty()) {
+                            val candidate = IceCandidate(sdpMid, sdpMLineIndex, sdp)
+                            Log.d(TAG, "Received remote ICE candidate from $targetCollection")
+                            onCandidateReceived(candidate)
+                        }
+                    }
+                }
+            }
+    }
+
+    /**
+     * Update call status (e.g. ENDED, DECLINED).
+     */
+    fun updateCallStatus(callId: String, status: String) {
+        if (callId.isBlank()) return
+        firestore.collection("calls").document(callId)
+            .update("status", status)
+            .addOnSuccessListener {
+                Log.d(TAG, "Call $callId status updated to $status")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to update call status: ${e.message}")
+            }
+    }
+
+    /**
+     * Listen for incoming calls for the current user.
+     */
+    fun startListeningForIncomingCalls(
+        currentUserId: String,
+        onIncomingCall: (callDoc: DocumentSnapshot) -> Unit
+    ) {
+        if (currentUserId.isBlank()) return
+        incomingCallsListener?.remove()
+
+        val now = System.currentTimeMillis()
+        incomingCallsListener = firestore.collection("calls")
+            .whereEqualTo("receiverUid", currentUserId)
+            .whereEqualTo("status", "CALLING")
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error listening for incoming calls: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                snapshots?.documents?.forEach { doc ->
+                    val createdAt = doc.getLong("createdAt") ?: 0L
+                    // Only react to fresh calls (less than 45 seconds old)
+                    if (System.currentTimeMillis() - createdAt < 45000L) {
+                        onIncomingCall(doc)
+                    }
+                }
+            }
+    }
+
+    fun stopListeningForIncomingCalls() {
+        incomingCallsListener?.remove()
+        incomingCallsListener = null
+    }
+
+    /**
+     * Clean up all active listeners for the current call.
+     */
+    fun cleanupCallListeners() {
+        callDocListener?.remove()
+        callDocListener = null
+        candidatesListener?.remove()
+        candidatesListener = null
     }
 }
