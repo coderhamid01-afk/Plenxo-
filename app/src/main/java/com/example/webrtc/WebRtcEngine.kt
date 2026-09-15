@@ -43,6 +43,7 @@ class WebRtcEngine(private val context: Context) {
 
     var onIceCandidateGathered: ((IceCandidate) -> Unit)? = null
     var onIceConnectionChanged: ((NetworkQuality) -> Unit)? = null
+    var onIceStateChanged: ((PeerConnection.IceConnectionState) -> Unit)? = null
 
     private var isVideoCall = false
     private var isFrontFacingCamera = true
@@ -179,6 +180,9 @@ class WebRtcEngine(private val context: Context) {
 
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
                 Log.d(TAG, "onIceConnectionChange: $state")
+                if (state != null) {
+                    scope.launch { onIceStateChanged?.invoke(state) }
+                }
                 val quality = when (state) {
                     PeerConnection.IceConnectionState.CONNECTED,
                     PeerConnection.IceConnectionState.COMPLETED -> NetworkQuality.EXCELLENT

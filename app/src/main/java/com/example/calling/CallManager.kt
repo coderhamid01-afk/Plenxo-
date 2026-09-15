@@ -136,27 +136,27 @@ object CallManager {
 
         engine.onIceConnectionChanged = { quality ->
             setNetworkQuality(quality)
+        }
+
+        engine.onIceStateChanged = { state ->
             val current = _activeCall.value
             if (current != null) {
-                when (quality) {
-                    NetworkQuality.EXCELLENT -> {
+                when (state) {
+                    org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
+                    org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
                         if (current.callState != CallState.CONNECTED) {
                             transitionToConnected()
                         }
                     }
-                    NetworkQuality.POOR -> {
+                    org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
                         if (current.callState == CallState.CONNECTED) {
                             _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
                         }
                     }
-                    NetworkQuality.DISCONNECTED -> {
+                    org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
                         terminateCall(CallState.FAILED, "Connection Failed")
                     }
-                    NetworkQuality.GOOD -> {
-                        if (current.callState != CallState.CONNECTED && current.callState != CallState.OUTGOING_RINGING && current.callState != CallState.INCOMING_RINGING) {
-                            transitionToConnected()
-                        }
-                    }
+                    else -> {}
                 }
             }
         }
@@ -190,10 +190,7 @@ object CallManager {
                     },
                     onFailure = { error ->
                         Log.e(TAG, "Failed to create SDP offer: $error")
-                        _activeCall.value = _activeCall.value?.copy(
-                            callState = CallState.FAILED,
-                            peerStatus = "Call Failed: $error"
-                        )
+                        terminateCall(CallState.FAILED, "Call Failed: $error")
                     }
                 )
 
@@ -215,10 +212,12 @@ object CallManager {
                     }
                 )
 
-                // Listen for remote ICE candidates
+                // Listen for Remote ICE candidates
                 callRepository.listenForRemoteIceCandidates(callId, isCaller = true) { candidate ->
                     engine.addIceCandidate(candidate)
                 }
+            } else {
+                terminateCall(CallState.FAILED, "Failed to start call session")
             }
         }
         
@@ -348,27 +347,27 @@ object CallManager {
 
         engine.onIceConnectionChanged = { quality ->
             setNetworkQuality(quality)
+        }
+
+        engine.onIceStateChanged = { state ->
             val current = _activeCall.value
             if (current != null) {
-                when (quality) {
-                    NetworkQuality.EXCELLENT -> {
+                when (state) {
+                    org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
+                    org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
                         if (current.callState != CallState.CONNECTED) {
                             transitionToConnected()
                         }
                     }
-                    NetworkQuality.POOR -> {
+                    org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
                         if (current.callState == CallState.CONNECTED) {
                             _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
                         }
                     }
-                    NetworkQuality.DISCONNECTED -> {
+                    org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
                         terminateCall(CallState.FAILED, "Connection Failed")
                     }
-                    NetworkQuality.GOOD -> {
-                        if (current.callState != CallState.CONNECTED && current.callState != CallState.OUTGOING_RINGING && current.callState != CallState.INCOMING_RINGING) {
-                            transitionToConnected()
-                        }
-                    }
+                    else -> {}
                 }
             }
         }
@@ -390,8 +389,11 @@ object CallManager {
                         },
                         onFailure = { error ->
                             Log.e(TAG, "Failed to create answer: $error")
+                            terminateCall(CallState.FAILED, "Failed to create answer")
                         }
                     )
+                } else {
+                    terminateCall(CallState.FAILED, "Failed to set remote description")
                 }
             }
         }
