@@ -64,7 +64,7 @@ class IncomingCallService : Service() {
                 stopIncomingCall()
             }
             ACTION_DECLINE_CALL -> {
-                CallManager.endCall()
+                CallManager.declineCall()
                 stopIncomingCall()
             }
             ACTION_STOP_SERVICE -> {

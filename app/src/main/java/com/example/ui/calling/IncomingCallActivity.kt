@@ -62,14 +62,25 @@ class IncomingCallActivity : ComponentActivity() {
                     IncomingCallOverlay(
                         session = activeCall!!,
                         onAccept = {
-                            CallManager.acceptCall()
-                            val intent = Intent(this@IncomingCallActivity, MainActivity::class.java)
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            startActivity(intent)
+                            val hasAudio = androidx.core.content.ContextCompat.checkSelfPermission(this@IncomingCallActivity, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            val hasCamera = androidx.core.content.ContextCompat.checkSelfPermission(this@IncomingCallActivity, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            val needsCamera = activeCall?.callType == com.example.calling.model.CallType.VIDEO
+                            
+                            if (hasAudio && (!needsCamera || hasCamera)) {
+                                CallManager.acceptCall()
+                                val intent = Intent(this@IncomingCallActivity, MainActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                startActivity(intent)
+                            } else {
+                                val intent = Intent(this@IncomingCallActivity, MainActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                intent.putExtra("AUTO_ACCEPT_CALL", true)
+                                startActivity(intent)
+                            }
                             finish()
                         },
                         onDecline = {
-                            CallManager.endCall()
+                            CallManager.declineCall()
                             finish()
                         }
                     )

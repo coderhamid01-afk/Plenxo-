@@ -52,6 +52,7 @@ object CallManager {
 
     private var timerJob: Job? = null
     private var ringTimerJob: Job? = null
+    private val collectorJobs = mutableListOf<Job>()
     private var logSaverCallback: ((CallLog) -> Unit)? = null
 
     val eglBaseContext: EglBase.Context?
@@ -114,17 +115,17 @@ object CallManager {
         val engine = WebRtcEngine(appContext)
         webRtcEngine = engine
 
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.localVideoTrackFlow.collect { track ->
                 _localVideoTrack.value = track
             }
         }
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.remoteVideoTrackFlow.collect { track ->
                 _remoteVideoTrack.value = track
             }
         }
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.networkQuality.collect { quality ->
                 setNetworkQuality(quality)
             }
@@ -325,17 +326,17 @@ object CallManager {
         val engine = WebRtcEngine(appContext)
         webRtcEngine = engine
 
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.localVideoTrackFlow.collect { track ->
                 _localVideoTrack.value = track
             }
         }
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.remoteVideoTrackFlow.collect { track ->
                 _remoteVideoTrack.value = track
             }
         }
-        scope.launch {
+        collectorJobs += scope.launch {
             engine.networkQuality.collect { quality ->
                 setNetworkQuality(quality)
             }
@@ -612,6 +613,8 @@ object CallManager {
     }
 
     private fun cleanupPreviousSession() {
+        collectorJobs.forEach { it.cancel() }
+        collectorJobs.clear()
         timerJob?.cancel()
         timerJob = null
         ringTimerJob?.cancel()
