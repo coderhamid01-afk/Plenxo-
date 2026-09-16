@@ -211,24 +211,37 @@ fun ChatDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Polished dark-gradient fallback instead of a flat near-black box, so the
-            // screen never looks like an empty void when no wallpaper is selected.
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(PlenxoColors.Background, Color(0xFF131824), PlenxoColors.Background)
-                )
-            )
+            .background(if (hasCustomWallpaper) Color.Transparent else Color.Black)
     ) {
         if (hasCustomWallpaper) {
             WallpaperRenderer(activeWallpaperId)
+            // Subtle dark scrim layer to ensure contrast
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+            )
         }
 
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                TopAppBar(
-                    navigationIcon = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Color(0xFF0A101D).copy(alpha = 0.8f))
+                        .border(1.dp, Color(0xFF00B0FF).copy(alpha = 0.5f), RoundedCornerShape(28.dp))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(
                             onClick = { viewModel.navigateToScreen(PlenxoScreen.HOME) },
                             modifier = Modifier.testTag("chat_detail_back_button")
@@ -239,12 +252,11 @@ fun ChatDetailScreen(
                                 tint = Color.White
                             )
                         }
-                    },
-                    title = {
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .weight(1f)
                                 .clickable {
                                     if (recipientUid.isNotBlank()) {
                                         viewModel.openUserProfile(recipientUid)
@@ -255,11 +267,6 @@ fun ChatDetailScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .testTag("chat_recipient_avatar")
-                                    .clickable {
-                                        if (recipientUid.isNotBlank()) {
-                                            viewModel.openUserProfile(recipientUid)
-                                        }
-                                    }
                             ) {
                                 ProfileImageWithRing(
                                     imageUrl = profilePicUrl,
@@ -278,7 +285,7 @@ fun ChatDetailScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = recipientName.ifEmpty { "Chat" },
@@ -318,8 +325,7 @@ fun ChatDetailScreen(
                                 )
                             }
                         }
-                    },
-                    actions = {
+
                         IconButton(
                             onClick = {
                                 if (recipientUid.isNotBlank()) {
@@ -358,14 +364,8 @@ fun ChatDetailScreen(
                         ) {
                             Icon(Icons.Default.Videocam, contentDescription = "Video Call", tint = Color.White)
                         }
-                        IconButton(onClick = { }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = InputBarSurface.copy(alpha = 0.95f)
-                    )
-                )
+                    }
+                }
             },
             bottomBar = {
                 ChatInputBar(
@@ -456,6 +456,8 @@ fun ChatDetailScreen(
                                 message = msg,
                                 isOutgoing = isOutgoing,
                                 primaryColor = primaryColor,
+                                peerAvatarUrl = profilePicUrl,
+                                peerName = recipientName,
                                 onRetryClick = { failedMsg -> viewModel.retryFailedMessage(failedMsg) }
                             )
                         }
@@ -655,10 +657,10 @@ private fun ChatInputBar(
                 spotColor = Color.Black.copy(alpha = 0.45f)
             )
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFF1E293B))
+            .background(Color(0xFF0A101D).copy(alpha = 0.8f))
             .border(
                 width = 1.dp,
-                color = if (isFocused) Color(0xFF22C55E).copy(alpha = 0.60f) else Color(0xFF334155),
+                color = if (isFocused) Color(0xFF00E5FF) else Color(0xFF00E5FF).copy(alpha = 0.5f),
                 shape = RoundedCornerShape(28.dp)
             )
             .animateContentSize(animationSpec = tween(180))

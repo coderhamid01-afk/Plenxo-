@@ -226,14 +226,10 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
                 color = MaterialTheme.colorScheme.background
             ) {
                 when (screen) {
+            PlenxoScreen.SPLASH,
             PlenxoScreen.PLACEHOLDER_ENTRY,
             PlenxoScreen.EMAIL_VERIFICATION_WAIT -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = primaryColor)
-                }
+                SplashScreen()
             }
             PlenxoScreen.LOGIN -> {
                 com.example.ui.screens.auth.LoginScreen(

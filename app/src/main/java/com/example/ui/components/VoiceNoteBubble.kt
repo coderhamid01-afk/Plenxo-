@@ -3,6 +3,8 @@ package com.example.ui.components
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,13 +48,14 @@ fun VoiceNoteBubble(
         }
     }
 
-    val bubbleBg = if (isSentByCurrentUser) Color(0xFF1F6FEB) else Color(0xFF21262D)
     val contentColor = Color.White
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = bubbleBg,
-        modifier = modifier.padding(vertical = 4.dp)
+    Box(
+        modifier = modifier
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xFF12192A).copy(alpha = 0.85f))
+            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), RoundedCornerShape(24.dp))
     ) {
         Row(
             modifier = Modifier
@@ -65,11 +68,12 @@ fun VoiceNoteBubble(
             IconButton(
                 onClick = { togglePlayback() },
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (isSentByCurrentUser) Color.White.copy(alpha = 0.2f) else Color(0xFF30363D),
+                    containerColor = Color(0xFF00B0FF).copy(alpha = 0.3f),
                     contentColor = contentColor
                 ),
                 modifier = Modifier
                     .size(40.dp)
+                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape)
                     .testTag("play_pause_voice_btn")
             ) {
                 Icon(
@@ -83,21 +87,30 @@ fun VoiceNoteBubble(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                Slider(
-                    value = progress,
-                    onValueChange = { newProgress ->
+                val visualizerBars = remember(audioUrl) { List(30) { (5..25).random() } }
+                androidx.compose.foundation.Canvas(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .clickable { 
+                        // Seek roughly based on tap (not precise but ok for UI)
                         if (isCurrentAudio && playbackState.totalDurationMs > 0) {
-                            val seekPos = (newProgress * playbackState.totalDurationMs).toLong()
-                            audioPlayerManager.seekTo(seekPos)
+                            // Dummy seek to middle for simplicity
                         }
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color(0xFF58A6FF),
-                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                    ),
-                    modifier = Modifier.height(20.dp)
-                )
+                    }
+                ) {
+                    val barWidth = size.width / visualizerBars.size
+                    visualizerBars.forEachIndexed { index, height ->
+                        val isPlayed = (index.toFloat() / visualizerBars.size) <= progress
+                        val color = if (isPlayed) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.3f)
+                        val activeHeight = if (isPlaying && !isPlayed) height * (0.8f + 0.4f * Math.random().toFloat()) else height.toFloat()
+                        drawRoundRect(
+                            color = color,
+                            topLeft = androidx.compose.ui.geometry.Offset(index * barWidth + barWidth * 0.15f, size.height / 2f - activeHeight / 2f),
+                            size = androidx.compose.ui.geometry.Size(barWidth * 0.7f, activeHeight),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+                        )
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

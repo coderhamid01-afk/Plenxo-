@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,8 @@ fun ChatBubble(
     message: Message,
     isOutgoing: Boolean,
     primaryColor: Color = Color(0xFF58A6FF),
+    peerAvatarUrl: String? = null,
+    peerName: String? = null,
     onRetryClick: ((Message) -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onImageClick: ((String) -> Unit)? = null
@@ -57,42 +60,60 @@ fun ChatBubble(
         RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp)
     }
 
-    val bubbleBg = if (isOutgoing) {
-        if (message.effectiveStatus == MessageStatus.FAILED) Color(0xFF451A1D) else primaryColor
-    } else {
-        Color(0xFF1F2937)
-    }
+    
 
     val textColor = Color.White
     val isFailed = message.effectiveStatus == MessageStatus.FAILED
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp, horizontal = 10.dp),
-        horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
+            .padding(vertical = 4.dp, horizontal = 10.dp),
+        horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
-        Surface(
-            modifier = Modifier
-                .widthIn(max = 300.dp)
-                .testTag("chat_bubble_${message.messageId}")
-                .clip(bubbleShape)
-                .then(
-                    if (isFailed) Modifier.border(1.dp, Color(0xFFEF4444), bubbleShape)
-                    else if (!isOutgoing) Modifier.border(1.dp, Color(0xFF374151), bubbleShape)
-                    else Modifier
+        if (!isOutgoing) {
+            if (peerAvatarUrl != null) {
+                AsyncImage(
+                    model = peerAvatarUrl,
+                    contentDescription = peerName,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B)),
+                    contentScale = ContentScale.Crop
                 )
-                .clickable {
-                    if (isFailed && onRetryClick != null) {
-                        onRetryClick(message)
-                    } else if (onLongClick != null) {
-                        onLongClick()
-                    }
-                },
-            shape = bubbleShape,
-            color = bubbleBg,
-            shadowElevation = 1.dp
+            } else {
+                Box(modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1E293B)))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        Column(
+            horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
         ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .testTag("chat_bubble_${message.messageId}")
+                    .clip(bubbleShape)
+                    .then(
+                        if (isFailed) {
+                            Modifier.background(Color(0xFF451A1D)).border(1.dp, Color(0xFFEF4444), bubbleShape)
+                        } else if (isOutgoing) {
+                            Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF0052D4), Color(0xFF0066FF))))
+                        } else {
+                            Modifier.background(Color(0xFF12192A).copy(alpha = 0.85f)).border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), bubbleShape)
+                        }
+                    )
+                    .clickable {
+                        if (isFailed && onRetryClick != null) {
+                            onRetryClick(message)
+                        } else if (onLongClick != null) {
+                            onLongClick()
+                        }
+                    }
+            ) {
             Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -162,6 +183,7 @@ fun ChatBubble(
                                 .height(210.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF0F172A))
+                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                                 .clickable {
                                     if (videoSource.isNotBlank()) {
                                         try {
@@ -178,7 +200,7 @@ fun ChatBubble(
                                                 }
                                                 context.startActivity(fallbackIntent)
                                             } catch (e2: Exception) {
-                                                android.widget.Toast.makeText(context, "Cannot play video: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                                android.widget.Toast.makeText(context, "Cannot play video: ${e.message ?: e2.message}", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
@@ -196,8 +218,8 @@ fun ChatBubble(
                             
                             Surface(
                                 shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.6f),
-                                modifier = Modifier.size(52.dp)
+                                color = Color(0xFF00B0FF).copy(alpha = 0.3f),
+                                modifier = Modifier.size(52.dp).border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -411,6 +433,7 @@ fun ChatBubble(
             }
         }
     }
+    }
 }
 
 /**
@@ -424,62 +447,54 @@ fun ChatBubble(
 fun MessageStatusIcon(
     status: MessageStatus,
     modifier: Modifier = Modifier,
-    size: Dp = 12.dp
+    size: Dp = 16.dp
 ) {
     val isRead = status == MessageStatus.READ
     val isSentOrDelivered = status == MessageStatus.SENT || status == MessageStatus.DELIVERED
     val isFailed = status == MessageStatus.FAILED
+    val isSending = status == MessageStatus.SENDING
 
-    // Smooth color transitions
-    val ringColor by animateColorAsState(
-        targetValue = when {
-            isFailed -> Color(0xFFEF4444)
-            isRead -> Color(0xFF2997FF) // Bright blue for SEEN / READ
-            isSentOrDelivered -> Color(0xFF9CA3AF) // Clean gray ring for SENT / DELIVERED
-            else -> Color(0xFF8E8E93).copy(alpha = 0.5f) // Subtle hollow gray outline for SENDING
-        },
-        animationSpec = tween(durationMillis = 300),
-        label = "status_ring_color"
-    )
-
-    // Smooth spring scale for inner dot
-    val innerDotScale by animateFloatAsState(
-        targetValue = if (isRead) 1f else if (isFailed) 0.6f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "inner_dot_scale"
-    )
-
-    val strokeWidthDp = 1.3.dp
+    val iconColor = when {
+        isFailed -> Color(0xFFEF4444)
+        isRead || isSentOrDelivered -> Color(0xFF00E5FF) // cyan checkmarks
+        else -> Color(0xFF8E8E93).copy(alpha = 0.5f)
+    }
 
     Canvas(
         modifier = modifier
             .size(size)
             .semantics { contentDescription = "Message status: ${status.name}" }
     ) {
-        val strokeWidthPx = strokeWidthDp.toPx()
-        val radius = (this.size.minDimension - strokeWidthPx) / 2f
-        val centerPoint = center
-
-        // 1. Outer Ring
-        drawCircle(
-            color = ringColor,
-            radius = radius,
-            center = centerPoint,
-            style = Stroke(width = strokeWidthPx)
-        )
-
-        // 2. Solid Inner Center Dot (for SEEN / READ state or FAILED state)
-        if (innerDotScale > 0f) {
-            val maxInnerRadius = radius - strokeWidthPx * 1.5f
-            val currentInnerRadius = (maxInnerRadius * innerDotScale).coerceAtLeast(0f)
-            drawCircle(
-                color = ringColor,
-                radius = currentInnerRadius,
-                center = centerPoint
+        val strokeWidthPx = 1.5.dp.toPx()
+        if (isFailed) {
+            drawCircle(color = iconColor, radius = size.toPx() / 3f)
+        } else if (isSending) {
+            drawCircle(color = iconColor, radius = size.toPx() / 2.5f, style = Stroke(width = 1.dp.toPx()))
+        } else {
+            // Checkmark 1
+            val path1 = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.toPx() * 0.15f, size.toPx() * 0.55f)
+                lineTo(size.toPx() * 0.4f, size.toPx() * 0.8f)
+                lineTo(size.toPx() * 0.8f, size.toPx() * 0.3f)
+            }
+            drawPath(
+                path = path1,
+                color = iconColor,
+                style = Stroke(width = strokeWidthPx, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
             )
+            // Checkmark 2
+            if (isRead || isSentOrDelivered) {
+                val path2 = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(size.toPx() * 0.45f, size.toPx() * 0.55f)
+                    lineTo(size.toPx() * 0.7f, size.toPx() * 0.8f)
+                    lineTo(size.toPx() * 1.1f, size.toPx() * 0.3f)
+                }
+                drawPath(
+                    path = path2,
+                    color = iconColor,
+                    style = Stroke(width = strokeWidthPx, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+                )
+            }
         }
     }
 }
