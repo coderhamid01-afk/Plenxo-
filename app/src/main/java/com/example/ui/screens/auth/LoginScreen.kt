@@ -6,7 +6,7 @@ import com.example.model.UserProfile
 import com.example.viewmodel.AuthViewModel
 
 /**
- * Login Screen wrapper delegating to the unified modern AuthScreen.
+ * Login Screen wrapper delegating to the unified modern AuthScreen and AuthHeader.
  */
 @Composable
 fun LoginScreen(
@@ -27,3 +27,4 @@ fun LoginScreen(
         primaryColor = primaryColor
     )
 }
+

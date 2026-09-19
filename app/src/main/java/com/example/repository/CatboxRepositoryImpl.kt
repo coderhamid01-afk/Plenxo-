@@ -34,6 +34,14 @@ class CatboxRepositoryImpl : CatboxRepository {
                 .connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
+                .addInterceptor { chain ->
+                    val original = chain.request()
+                    val request = original.newBuilder()
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        .build()
+                    chain.proceed(request)
+                }
                 .build()
         }
     }
@@ -65,18 +73,42 @@ class CatboxRepositoryImpl : CatboxRepository {
             .post(requestBody)
             .build()
 
-        val response = client.newCall(request).execute()
-        val responseCode = response.code
-        val responseText = response.body?.string()?.trim() ?: ""
+        var attempts = 0
+        val maxAttempts = 3
+        var lastException: Exception? = null
 
-        if (!response.isSuccessful || responseText.isEmpty() || !responseText.startsWith("http")) {
-            Log.e(TAG, "Catbox upload failed ($responseCode): $responseText")
-            throw IllegalStateException("Catbox upload failed ($responseCode): $responseText")
+        while (attempts < maxAttempts) {
+            attempts++
+            try {
+                Log.d(TAG, "CatboxRepositoryImpl upload attempt $attempts of $maxAttempts...")
+                val response = client.newCall(request).execute()
+                val responseCode = response.code
+                val responseText = response.body?.string()?.trim() ?: ""
+
+                if (response.isSuccessful && responseText.isNotBlank() && responseText.startsWith("http")) {
+                    onProgress(100)
+                    Log.d(TAG, "Catbox upload succeeded! URL: $responseText")
+                    return@withContext responseText
+                } else {
+                    lastException = IllegalStateException("Catbox upload failed ($responseCode): $responseText")
+                    Log.w(TAG, "Attempt $attempts failed: ${lastException.message}")
+                }
+            } catch (e: java.io.IOException) {
+                lastException = e
+                Log.w(TAG, "Attempt $attempts network/connection error: ${e.message}")
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "Attempt $attempts unexpected error: ${e.message}")
+            }
+
+            if (attempts < maxAttempts) {
+                kotlinx.coroutines.delay(1000L * attempts)
+            }
         }
 
-        onProgress(100)
-        Log.d(TAG, "Catbox upload succeeded! URL: $responseText")
-        responseText
+        val finalError = lastException ?: IllegalStateException("Catbox upload failed after $maxAttempts attempts")
+        Log.e(TAG, "All $maxAttempts Catbox upload attempts exhausted: ${finalError.message}", finalError)
+        throw finalError
     }
 
     override suspend fun uploadUri(

@@ -86,13 +86,45 @@ class ProfileSettingsViewModel(application: Application) : AndroidViewModel(appl
             return ""
         }
 
+    private fun getInitialCachedProfileState(): ProfileUiState {
+        val resolvedUid = currentUid
+        val local = com.example.util.SessionManager.getUserProfileLocally(getApplication())
+        val userEmail = auth.currentUser?.email 
+            ?: com.example.util.SessionManager.getLoginState(getApplication()).email 
+            ?: ""
+        val fallbackPxId = if (resolvedUid.isNotBlank()) "PX-" + (kotlin.math.abs(resolvedUid.hashCode()) % 900000 + 100000) else "PX-100000"
+
+        val resolvedName = local.displayName.takeIf { it.isNotBlank() && it != "User" }
+            ?: auth.currentUser?.displayName?.takeIf { it.isNotBlank() && it != "User" }
+            ?: if (userEmail.contains("@")) userEmail.substringBefore("@") else "Plenxo User"
+        val resolvedBio = local.bio.ifBlank { "Hey there! I am using Plenxo." }
+        val resolvedPic = local.profilePicUrl.ifBlank { auth.currentUser?.photoUrl?.toString() ?: "" }
+        val resolvedPxId = local.plenxoId.ifBlank { fallbackPxId }
+
+        return ProfileUiState.Success(
+            UserProfileDomainModel(
+                userId = resolvedUid,
+                email = userEmail,
+                name = resolvedName,
+                displayName = resolvedName,
+                bio = resolvedBio,
+                statusMessage = resolvedBio,
+                profileUrl = resolvedPic,
+                profilePicUrl = resolvedPic,
+                plenxoId = resolvedPxId,
+                userCode = resolvedPxId
+            )
+        )
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val profileUiState: StateFlow<ProfileUiState> = _refreshTrigger.flatMapLatest {
         flow {
+            val cached = getInitialCachedProfileState()
+            emit(cached)
+
             val resolvedUid = currentUid
-            if (resolvedUid.isEmpty()) {
-                emit(ProfileUiState.Error("User not authenticated"))
-            } else {
+            if (resolvedUid.isNotEmpty()) {
                 val userEmail = auth.currentUser?.email 
                     ?: com.example.util.SessionManager.getLoginState(getApplication()).email 
                     ?: ""
@@ -149,36 +181,17 @@ class ProfileSettingsViewModel(application: Application) : AndroidViewModel(appl
                                 )
                             )
                         } else {
-                            val resolvedName = local.displayName.takeIf { it.isNotBlank() && it != "User" }
-                                ?: auth.currentUser?.displayName?.takeIf { it.isNotBlank() && it != "User" }
-                                ?: if (userEmail.contains("@")) userEmail.substringBefore("@") else "User"
-                            val resolvedBio = local.bio.ifBlank { "" }
-                            val resolvedPic = local.profilePicUrl.ifBlank { auth.currentUser?.photoUrl?.toString() ?: "" }
-                            val resolvedPxId = local.plenxoId.ifBlank { fallbackPxId }
-                            ProfileUiState.Success(
-                                UserProfileDomainModel(
-                                    userId = resolvedUid,
-                                    email = userEmail,
-                                    name = resolvedName,
-                                    displayName = resolvedName,
-                                    bio = resolvedBio,
-                                    statusMessage = resolvedBio,
-                                    profileUrl = resolvedPic,
-                                    profilePicUrl = resolvedPic,
-                                    plenxoId = resolvedPxId,
-                                    userCode = resolvedPxId
-                                )
-                            )
+                            cached
                         }
                     }
-                    .catch { emit(ProfileUiState.Error(it.message ?: "Unknown Error")) }
+                    .catch { emit(cached) }
                     .collect { emit(it) }
             }
         }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = ProfileUiState.Loading
+        started = SharingStarted.Eagerly,
+        initialValue = getInitialCachedProfileState()
     )
 
     /**
@@ -201,7 +214,7 @@ class ProfileSettingsViewModel(application: Application) : AndroidViewModel(appl
             _uploadProgress.value = 0
 
             try {
-                val timedOutResult = kotlinx.coroutines.withTimeoutOrNull(15000L) {
+                val timedOutResult = kotlinx.coroutines.withTimeoutOrNull(90000L) {
                     var finalProfileUrl = profileUrl
 
                     val isLocalUri = profileUrl.startsWith("content://") ||
@@ -219,9 +232,10 @@ class ProfileSettingsViewModel(application: Application) : AndroidViewModel(appl
                             Log.d("ProfileSettingsVM", "Catbox upload complete. Download URL: $finalProfileUrl")
                         } catch (e: Exception) {
                             Log.e("ProfileSettingsVM", "Catbox upload error: ${e.message}", e)
+                            val errorMsg = e.message ?: "Connection failure to catbox.moe"
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(getApplication<Application>(), "Failed to upload image to Catbox. Please try again.", Toast.LENGTH_LONG).show()
-                                _updateState.value = UpdateUiState.Error("Failed to upload image to Catbox. Please try again.")
+                                Toast.makeText(getApplication<Application>(), "Failed to upload image: $errorMsg", Toast.LENGTH_LONG).show()
+                                _updateState.value = UpdateUiState.Error("Failed to upload image to Catbox: $errorMsg")
                             }
                             return@withTimeoutOrNull false
                         }
@@ -274,7 +288,7 @@ class ProfileSettingsViewModel(application: Application) : AndroidViewModel(appl
                 }
 
                 if (timedOutResult == null) {
-                    Log.e("ProfileSettingsVM", "saveProfile operation timed out after 15s")
+                    Log.e("ProfileSettingsVM", "saveProfile operation timed out after 90s")
                     withContext(Dispatchers.Main) {
                         _uploadProgress.value = 0
                         _updateState.value = UpdateUiState.Error("Request timed out. Please check your connection and try again.")

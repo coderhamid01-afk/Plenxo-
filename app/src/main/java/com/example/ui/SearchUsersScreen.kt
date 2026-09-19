@@ -233,7 +233,11 @@ fun SearchUsersScreen(
                             ""
                         }
                         val profilePic = (userMap["profilePicUrl"] as? String) ?: (userMap["photoUrl"] as? String) ?: (userMap["avatarUrl"] as? String) ?: ""
-                        val profileRingId = (userMap["profileRingId"] as? String) ?: (userMap["selectedRingId"] as? String) ?: "none"
+                        val profileRingId = (userMap["activeProfileRing"] as? String)
+                            ?: (userMap["profileRingId"] as? String)
+                            ?: (userMap["profileRing"] as? String)
+                            ?: (userMap["selectedRingId"] as? String)
+                            ?: "none"
                         val bio = (userMap["bio"] as? String) ?: (userMap["statusMessage"] as? String) ?: ""
 
                         val contactStatus = contactStatuses[targetUid]
@@ -255,6 +259,7 @@ fun SearchUsersScreen(
                                 plenxoId = formattedPxId,
                                 profilePicUrl = profilePic,
                                 profileRingId = profileRingId,
+                                userId = targetUid,
                                 bio = bio.takeIf { it.isNotBlank() },
                                 actionState = when {
                                     isAccepted -> UserActionState.Chevron

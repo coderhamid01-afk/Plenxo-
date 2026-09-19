@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +34,11 @@ fun ProfileImageWithRing(
     modifier: Modifier = Modifier,
     ringBorderWidth: Int = 5, // in dp
     fallbackInitial: String? = null,
+    userId: String? = null,
     onClick: (() -> Unit)? = null
 ) {
-    val ringId = profileRingId ?: "none"
+    val liveRingId by rememberActiveProfileRing(userId = userId, initialRingId = profileRingId)
+    val ringId = liveRingId.ifEmpty { profileRingId ?: "none" }
     val hasRing = ringId.isNotEmpty() && ringId != "none" && ringId != "NONE"
 
     val ringBrush = when (ringId.lowercase()) {
@@ -128,14 +131,17 @@ fun UserAvatar(
     profileRingId: String? = null,
     displayName: String = "",
     plenxoId: String = "",
+    userId: String? = null,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     isOnline: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val ringId = profileRing?.takeIf { it.isNotBlank() && it != "none" }
+    val initialRing = profileRing?.takeIf { it.isNotBlank() && it != "none" }
         ?: profileRingId?.takeIf { it.isNotBlank() && it != "none" }
         ?: "none"
+    val liveRingId by rememberActiveProfileRing(userId = userId, initialRingId = initialRing)
+    val ringId = liveRingId.ifEmpty { initialRing }
 
     Box(
         modifier = modifier.size(size),

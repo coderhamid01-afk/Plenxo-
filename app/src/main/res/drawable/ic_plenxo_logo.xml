@@ -1,12 +1,57 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="100dp"
-    android:height="100dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-  <path
-      android:fillColor="#1F2433"
-      android:pathData="M50,50m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0"/>
-  <path
-      android:fillColor="#58A6FF"
-      android:pathData="M35,30h25c8.28,0 15,6.72 15,15c0,8.28 -6.72,15 -15,15h-10v15c0,2.76 -2.24,5 -5,5h0c-2.76,0 -5,-2.24 -5,-5v-40c0,-2.76 2.24,-5 5,-5z M45,40v10h15c2.76,0 5,-2.24 5,-5c0,-2.76 -2.24,-5 -5,-5z"/>
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Diamond Squircle Background -->
+    <path
+        android:pathData="M60,8 C90,8 112,30 112,60 C112,90 90,112 60,112 C30,112 8,90 8,60 C8,30 30,8 60,8 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="8"
+                android:startY="8"
+                android:endX="112"
+                android:endY="112"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#121826"/>
+                <item android:offset="1.0" android:color="#0A0E17"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Neon Cyan Diamond Squircle Border -->
+    <path
+        android:pathData="M60,10 C88,10 110,32 110,60 C110,88 88,110 60,110 C32,110 10,88 10,60 C10,32 32,10 60,10 Z"
+        android:strokeWidth="2.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="10"
+                android:startY="10"
+                android:endX="110"
+                android:endY="110"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00E5FF"/>
+                <item android:offset="0.5" android:color="#0082FB"/>
+                <item android:offset="1.0" android:color="#00E5FF"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Cyan Diamond Center Symbol -->
+    <path
+        android:pathData="M44,60 L60,44 L76,60 L60,76 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="44"
+                android:startY="44"
+                android:endX="76"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00E5FF"/>
+                <item android:offset="1.0" android:color="#0082FB"/>
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

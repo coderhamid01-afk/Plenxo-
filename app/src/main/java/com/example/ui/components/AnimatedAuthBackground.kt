@@ -39,9 +39,9 @@ import kotlin.math.sin
 @Composable
 fun AnimatedAuthBackground(
     modifier: Modifier = Modifier,
-    cyanColor: Color = Color(0xFF00F2FE),
-    purpleColor: Color = Color(0xFF8B5CF6),
-    obsidianBase: Color = Color(0xFF0B0E14)
+    cyanColor: Color = Color(0xFF00E5FF),
+    purpleColor: Color = Color(0xFF0082FB),
+    obsidianBase: Color = Color(0xFF000000)
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "LiquidGlassEngine")
 

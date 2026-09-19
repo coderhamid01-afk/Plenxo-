@@ -462,17 +462,26 @@ fun ProfileRingsScreen(
                     Button(
                         onClick = {
                             // 1. Save locally to SessionManager & ViewModel
-                            com.example.util.SessionManager.saveProfileRingId(context, selectedRingId)
+                            com.example.util.SessionManager.saveActiveProfileRing(context, selectedRingId)
                             weChatViewModel.profileRingId.value = selectedRingId
-                            weChatViewModel.currentUserProfile.value = weChatViewModel.currentUserProfile.value?.copy(profileRingId = selectedRingId)
+                            weChatViewModel.currentUserProfile.value = weChatViewModel.currentUserProfile.value?.copy(
+                                profileRingId = selectedRingId,
+                                activeProfileRing = selectedRingId
+                            )
 
-                            // 2. Save state to backend (Firestore & ViewModel API)
+                            // 2. Save state to backend (Firestore activeProfileRing)
                             val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
                             if (currentUid.isNotEmpty()) {
+                                val ringUpdates = mapOf(
+                                    "activeProfileRing" to selectedRingId,
+                                    "profileRingId" to selectedRingId,
+                                    "profileRing" to selectedRingId,
+                                    "selectedRingId" to selectedRingId
+                                )
                                 com.google.firebase.firestore.FirebaseFirestore.getInstance()
                                     .collection("users")
                                     .document(currentUid)
-                                    .set(mapOf("profileRingId" to selectedRingId), com.google.firebase.firestore.SetOptions.merge())
+                                    .set(ringUpdates, com.google.firebase.firestore.SetOptions.merge())
                             }
                             viewModel.updateProfileRing(selectedRingId) { _ -> }
 

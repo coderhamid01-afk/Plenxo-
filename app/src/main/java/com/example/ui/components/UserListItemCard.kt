@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +66,7 @@ fun UserListItemCard(
     plenxoId: String,
     profilePicUrl: String?,
     modifier: Modifier = Modifier,
+    userId: String? = null,
     bio: String? = null,
     isOnline: Boolean = false,
     profileRingId: String = "none",
@@ -72,6 +74,9 @@ fun UserListItemCard(
     onClick: (() -> Unit)? = null,
     actionSlot: @Composable () -> Unit = {}
 ) {
+    val liveRingId by rememberActiveProfileRing(userId = userId, initialRingId = profileRingId)
+    val effectiveRing = liveRingId.ifEmpty { profileRingId }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -83,7 +88,7 @@ fun UserListItemCard(
     ) {
         // Left Side: Profile Picture with Ring + Fallback Initials + Online Dot
         ProfileRingBox(
-            ringId = profileRingId,
+            ringId = effectiveRing,
             ringPadding = 2.dp,
             borderWidth = 3.dp
         ) {
@@ -205,6 +210,7 @@ fun UserListItemCard(
     profilePicUrl: String?,
     actionState: UserActionState,
     modifier: Modifier = Modifier,
+    userId: String? = null,
     bio: String? = null,
     isOnline: Boolean = false,
     profileRingId: String = "none",
@@ -216,6 +222,7 @@ fun UserListItemCard(
         plenxoId = plenxoId,
         profilePicUrl = profilePicUrl,
         modifier = modifier,
+        userId = userId,
         bio = bio,
         isOnline = isOnline,
         profileRingId = profileRingId,

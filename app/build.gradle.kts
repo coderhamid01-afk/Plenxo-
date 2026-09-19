@@ -20,7 +20,7 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk = 34
+  compileSdk = 35
 
   defaultConfig {
     applicationId = "com.plenxo.me"
@@ -114,6 +114,7 @@ android {
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
+  implementation("androidx.core:core-splashscreen:1.0.1")
   implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.appcompat)
   implementation("androidx.browser:browser:1.8.0")
@@ -134,6 +135,7 @@ dependencies {
   implementation(libs.androidx.media3.effect)
   implementation(libs.androidx.media3.common)
   implementation(libs.androidx.media3.exoplayer)
+  implementation(libs.androidx.media3.ui)
   implementation(libs.androidx.navigation.compose)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)

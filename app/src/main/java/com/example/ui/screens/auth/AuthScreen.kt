@@ -213,37 +213,12 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 2. FLOATING TRANSPARENT HEADER (App Logo, Title, Subtitle directly on background)
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.app_logo),
-                contentDescription = "Plenxo Logo",
-                modifier = Modifier
-                    .size(76.dp)
-                    .shadow(16.dp, RoundedCornerShape(22.dp), ambientColor = Color(0xFF0082FB).copy(alpha = 0.5f))
-                    .clip(RoundedCornerShape(22.dp))
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Animated Title & Subtitle based on active mode
-            Text(
-                text = if (authMode == AuthMode.LOGIN) "Welcome Back" else "Create Account",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFFF8FAFC),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = if (authMode == AuthMode.LOGIN)
+            AuthHeader(
+                title = if (authMode == AuthMode.LOGIN) "Welcome Back" else "Create Account",
+                subtitle = if (authMode == AuthMode.LOGIN)
                     "Sign in to access your account"
                 else
-                    "Sign up to access your account",
-                fontSize = 13.sp,
-                color = Color(0xFF94A3B8),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                    "Sign up to access your account"
             )
 
             Spacer(modifier = Modifier.height(28.dp))

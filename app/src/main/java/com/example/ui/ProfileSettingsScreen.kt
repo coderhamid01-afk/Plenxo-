@@ -344,34 +344,33 @@ fun ProfileSettingsScreen(
             },
             containerColor = darkBg
         ) { paddingValues ->
-        when (profileUiState) {
-            is ProfileUiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accentBlue)
-                }
+        val profile = when (profileUiState) {
+            is ProfileUiState.Success -> (profileUiState as ProfileUiState.Success).profile
+            else -> {
+                val local = com.example.util.SessionManager.getUserProfileLocally(context)
+                val email = com.example.util.SessionManager.getLoginState(context).email ?: ""
+                val name = local.displayName.ifBlank { if (email.contains("@")) email.substringBefore("@") else "Plenxo User" }
+                val pxId = local.plenxoId.ifBlank { "PX-100000" }
+                UserProfileDomainModel(
+                    userId = viewModel.currentUid,
+                    email = email,
+                    name = name,
+                    displayName = name,
+                    bio = local.bio.ifBlank { "Hey there! I am using Plenxo." },
+                    statusMessage = local.bio.ifBlank { "Hey there! I am using Plenxo." },
+                    profileUrl = local.profilePicUrl,
+                    profilePicUrl = local.profilePicUrl,
+                    plenxoId = pxId,
+                    userCode = pxId
+                )
             }
-            is ProfileUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Authentication failed or error: ${(profileUiState as ProfileUiState.Error).message}",
-                        color = Color.Red,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-            is ProfileUiState.Success -> {
-                val profile = (profileUiState as ProfileUiState.Success).profile
+        }
 
-                val initialResolvedName = profile.resolvedDisplayName.takeIf { it.isNotBlank() && it != "User" }
-                    ?: profile.name.takeIf { it.isNotBlank() && it != "User" }
-                    ?: profile.displayName.takeIf { it.isNotBlank() && it != "User" }
-                    ?: ""
-                val initialResolvedBio = profile.resolvedBio.ifBlank { profile.bio.ifBlank { profile.statusMessage } }
+        val initialResolvedName = profile.resolvedDisplayName.takeIf { it.isNotBlank() && it != "User" }
+            ?: profile.name.takeIf { it.isNotBlank() && it != "User" }
+            ?: profile.displayName.takeIf { it.isNotBlank() && it != "User" }
+            ?: ""
+        val initialResolvedBio = profile.resolvedBio.ifBlank { profile.bio.ifBlank { profile.statusMessage } }
 
                 var nameInput by remember { mutableStateOf(initialResolvedName) }
                 var bioInput by remember { mutableStateOf(initialResolvedBio) }
@@ -1519,6 +1518,4 @@ fun ProfileSettingsScreen(
                 }
             }
         }
-    }
-}
 }

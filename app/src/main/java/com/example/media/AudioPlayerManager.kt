@@ -1,11 +1,14 @@
 package com.example.media
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +50,7 @@ class AudioPlayerManager(private val context: Context) {
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            Log.d(TAG, "onIsPlayingChanged: $isPlaying")
             _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
             if (isPlaying) {
                 startProgressPolling()
@@ -56,6 +60,7 @@ class AudioPlayerManager(private val context: Context) {
         }
 
         override fun onPlaybackStateChanged(playbackStateInt: Int) {
+            Log.d(TAG, "onPlaybackStateChanged: $playbackStateInt")
             when (playbackStateInt) {
                 Player.STATE_READY -> {
                     val duration = exoPlayer?.duration ?: 0L
@@ -79,7 +84,7 @@ class AudioPlayerManager(private val context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e(TAG, "Audio playback error: ${error.message}", error)
+            Log.e(TAG, "Audio playback error [ErrorCode: ${error.errorCodeName}]: ${error.message}", error)
             _playbackState.value = _playbackState.value.copy(isPlaying = false)
             stopProgressPolling()
         }
@@ -87,8 +92,26 @@ class AudioPlayerManager(private val context: Context) {
 
     private fun ensurePlayerInitialized() {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
-                addListener(playerListener)
+            try {
+                val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+                    .setUserAgent("Plenxo-Android-App")
+                    .setAllowCrossProtocolRedirects(true)
+                    .setConnectTimeoutMs(15000)
+                    .setReadTimeoutMs(15000)
+
+                val mediaSourceFactory = DefaultMediaSourceFactory(context.applicationContext)
+                    .setDataSourceFactory(httpDataSourceFactory)
+
+                exoPlayer = ExoPlayer.Builder(context.applicationContext)
+                    .setMediaSourceFactory(mediaSourceFactory)
+                    .build().apply {
+                        addListener(playerListener)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error initializing ExoPlayer", e)
+                exoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
+                    addListener(playerListener)
+                }
             }
         }
     }
@@ -112,11 +135,17 @@ class AudioPlayerManager(private val context: Context) {
             if (player.isPlaying) {
                 player.pause()
             } else {
+                if (player.playbackState == Player.STATE_ENDED) {
+                    player.seekTo(0)
+                }
+                player.playWhenReady = true
                 player.play()
             }
         } else {
             // Stop any currently playing voice message
             player.stop()
+            player.clearMediaItems()
+            
             _playbackState.value = PlaybackState(
                 isPlaying = false,
                 currentPositionMs = 0L,
@@ -125,8 +154,10 @@ class AudioPlayerManager(private val context: Context) {
             )
 
             try {
-                val mediaItem = MediaItem.fromUri(url)
+                val uri = Uri.parse(url)
+                val mediaItem = MediaItem.fromUri(uri)
                 player.setMediaItem(mediaItem)
+                player.playWhenReady = true
                 player.prepare()
                 player.play()
             } catch (e: Exception) {
@@ -169,7 +200,7 @@ class AudioPlayerManager(private val context: Context) {
                 exoPlayer?.let { player ->
                     if (player.isPlaying) {
                         _playbackState.value = _playbackState.value.copy(
-                            currentPositionMs = player.currentPosition,
+                            currentPositionMs = player.currentPosition.coerceAtLeast(0L),
                             totalDurationMs = if (player.duration > 0) player.duration else _playbackState.value.totalDurationMs
                         )
                     }

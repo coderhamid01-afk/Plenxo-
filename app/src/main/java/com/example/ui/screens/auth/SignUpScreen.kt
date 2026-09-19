@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 import com.example.viewmodel.AuthViewModel
 
 /**
- * SignUp Screen wrapper delegating to the unified modern AuthScreen.
+ * SignUp Screen wrapper delegating to the unified modern AuthScreen and AuthHeader.
  */
 @Composable
 fun SignUpScreen(
@@ -23,3 +23,4 @@ fun SignUpScreen(
         primaryColor = primaryColor
     )
 }
+

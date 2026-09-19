@@ -1,10 +1,13 @@
 package com.example.ui.components
 
 import android.widget.Toast
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +18,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -23,6 +30,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.media.AudioPlayerManager
 
+/**
+ * Plenxo Dark Neon Glassmorphic Voice Note Bubble powered by AndroidX Media3 ExoPlayer.
+ *
+ * Features:
+ * - Pure Media3 ExoPlayer singleton integration via AudioPlayerManager.
+ * - Glassmorphic slate background (#12192A) with cyan outline (#00E5FF).
+ * - Interactive waveform seeking and dynamic bar animations when playing.
+ * - Precise time text formatting matching prompt specs (0:18 / 0:45).
+ */
 @Composable
 fun VoiceNoteBubble(
     audioUrl: String,
@@ -40,6 +56,18 @@ fun VoiceNoteBubble(
 
     val progress = (currentPosMs.toFloat() / totalDurMs.toFloat()).coerceIn(0f, 1f)
 
+    // Animated pulse value for active audio bars
+    val infiniteTransition = rememberInfiniteTransition(label = "waveform_pulse")
+    val waveAnimPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "wave_pulse"
+    )
+
     val togglePlayback = {
         try {
             audioPlayerManager.playAudio(audioUrl)
@@ -53,18 +81,18 @@ fun VoiceNoteBubble(
     Box(
         modifier = modifier
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(Color(0xFF12192A).copy(alpha = 0.85f))
-            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF12192A).copy(alpha = 0.88f))
+            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(20.dp))
     ) {
         Row(
             modifier = Modifier
-                .width(240.dp)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .width(250.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Play/Pause button
+            // Dark Neon Play/Pause Button
             IconButton(
                 onClick = { togglePlayback() },
                 colors = IconButtonDefaults.iconButtonColors(
@@ -72,63 +100,98 @@ fun VoiceNoteBubble(
                     contentColor = contentColor
                 ),
                 modifier = Modifier
-                    .size(40.dp)
-                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape)
+                    .size(42.dp)
+                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
                     .testTag("play_pause_voice_btn")
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    contentDescription = if (isPlaying) "Pause Voice Note" else "Play Voice Note",
+                    tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // Progress Slider and Duration Text
+            // Interactive Waveform & Position/Duration Display
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                val visualizerBars = remember(audioUrl) { List(30) { (5..25).random() } }
-                androidx.compose.foundation.Canvas(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .clickable { 
-                        // Seek roughly based on tap (not precise but ok for UI)
-                        if (isCurrentAudio && playbackState.totalDurationMs > 0) {
-                            // Dummy seek to middle for simplicity
+                // Waveform Canvas with tap-to-seek
+                val visualizerHeights = remember(audioUrl) {
+                    listOf(
+                        8, 14, 22, 16, 10, 24, 18, 12, 28, 20, 14, 26, 16, 10, 22,
+                        18, 12, 24, 20, 14, 28, 16, 10, 22, 18, 12, 26, 20, 14, 8
+                    )
+                }
+
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(26.dp)
+                        .pointerInput(audioUrl) {
+                            detectTapGestures { offset ->
+                                if (totalDurMs > 1L) {
+                                    val tapFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    val targetPosMs = (tapFraction * totalDurMs).toLong()
+                                    if (!isCurrentAudio) {
+                                        audioPlayerManager.playAudio(audioUrl)
+                                    }
+                                    audioPlayerManager.seekTo(targetPosMs)
+                                } else {
+                                    togglePlayback()
+                                }
+                            }
                         }
-                    }
                 ) {
-                    val barWidth = size.width / visualizerBars.size
-                    visualizerBars.forEachIndexed { index, height ->
-                        val isPlayed = (index.toFloat() / visualizerBars.size) <= progress
-                        val color = if (isPlayed) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.3f)
-                        val activeHeight = if (isPlaying && !isPlayed) height * (0.8f + 0.4f * Math.random().toFloat()) else height.toFloat()
+                    val barCount = visualizerHeights.size
+                    val barWidth = size.width / barCount
+                    visualizerHeights.forEachIndexed { index, baseHeight ->
+                        val barFraction = index.toFloat() / barCount.toFloat()
+                        val isPlayed = barFraction <= progress
+
+                        val color = if (isPlayed) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.35f)
+
+                        // Dynamic height animation for active audio playback
+                        val heightMultiplier = if (isPlaying) {
+                            val phaseOffset = (index % 4) * 0.25f
+                            0.7f + 0.6f * ((waveAnimPhase + phaseOffset) % 1f)
+                        } else {
+                            1.0f
+                        }
+                        val finalHeight = (baseHeight.dp.toPx() * heightMultiplier).coerceAtMost(size.height)
+
                         drawRoundRect(
                             color = color,
-                            topLeft = androidx.compose.ui.geometry.Offset(index * barWidth + barWidth * 0.15f, size.height / 2f - activeHeight / 2f),
-                            size = androidx.compose.ui.geometry.Size(barWidth * 0.7f, activeHeight),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
+                            topLeft = Offset(
+                                x = index * barWidth + barWidth * 0.15f,
+                                y = (size.height - finalHeight) / 2f
+                            ),
+                            size = Size(barWidth * 0.7f, finalHeight),
+                            cornerRadius = CornerRadius(2.dp.toPx())
                         )
                     }
                 }
 
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Time Duration Text in required format: 0:18 / 0:45
+                val posSec = (currentPosMs / 1000).toInt()
+                val totalSec = if (totalDurMs > 1L) (totalDurMs / 1000).toInt() else 0
+
+                val posStr = String.format("%d:%02d", posSec / 60, posSec % 60)
+                val totalStr = String.format("%d:%02d", totalSec / 60, totalSec % 60)
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val posSec = (currentPosMs / 1000).toInt()
-                    val totalSec = (totalDurMs / 1000).toInt()
                     Text(
-                        text = String.format("%02d:%02d", posSec / 60, posSec % 60),
+                        text = if (isCurrentAudio && totalDurMs > 1L) "$posStr / $totalStr" else if (totalSec > 0) totalStr else "Voice Note",
                         fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = String.format("%02d:%02d", totalSec / 60, totalSec % 60),
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium
+                        color = Color(0xFF00E5FF),
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.3.sp
                     )
                 }
             }

@@ -74,10 +74,17 @@ data class UserModel(
     @get:PropertyName("bioStatus") @set:PropertyName("bioStatus") var bioStatus: String = "",
     @get:PropertyName("profilePicUrl") @set:PropertyName("profilePicUrl") var profilePicUrl: String = "",
     @get:PropertyName("plenxoId") @set:PropertyName("plenxoId") var plenxoId: String = "",
+    @get:PropertyName("activeProfileRing") @set:PropertyName("activeProfileRing") var activeProfileRing: String? = null,
     @get:PropertyName("profileRingId") @set:PropertyName("profileRingId") var profileRingId: String = "none",
     @get:PropertyName("profileRing") @set:PropertyName("profileRing") var profileRing: String? = null,
     @get:PropertyName("createdAt") @set:PropertyName("createdAt") var createdAt: Long = System.currentTimeMillis()
 ) {
+    val effectiveRingId: String
+        get() = activeProfileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRingId.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: "none"
+
     val resolvedDisplayName: String
         get() = displayName.takeIf { it.isNotBlank() && it != "User" }
             ?: name.takeIf { it.isNotBlank() && it != "User" }
@@ -224,6 +231,7 @@ data class UserProfile(
     @get:PropertyName("statusMessage") @set:PropertyName("statusMessage") var statusMessage: String = "",
     @get:PropertyName("bio") @set:PropertyName("bio") var bio: String = "",
     @get:PropertyName("bioStatus") @set:PropertyName("bioStatus") var bioStatus: String = "",
+    @get:PropertyName("activeProfileRing") @set:PropertyName("activeProfileRing") var activeProfileRing: String? = null,
     @get:PropertyName("selectedRingId") @set:PropertyName("selectedRingId") var selectedRingId: String = "NONE",
     @get:PropertyName("profileRingId") @set:PropertyName("profileRingId") var profileRingId: String = "none",
     @get:PropertyName("profileRing") @set:PropertyName("profileRing") var profileRing: String? = null,
@@ -239,6 +247,13 @@ data class UserProfile(
     @get:PropertyName("isProfileCompleted") @set:PropertyName("isProfileCompleted") var isProfileCompleted: Boolean = false,
     @get:PropertyName("leagueData") @set:PropertyName("leagueData") var leagueData: LeagueData = LeagueData()
 ) {
+    val effectiveRingId: String
+        get() = activeProfileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRingId.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: selectedRingId.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: "none"
+
     val resolvedDisplayName: String
         get() = displayName.takeIf { it.isNotBlank() && it != "User" }
             ?: name.takeIf { it.isNotBlank() && it != "User" }

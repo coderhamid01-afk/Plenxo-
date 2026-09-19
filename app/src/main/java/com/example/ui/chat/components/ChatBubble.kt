@@ -52,7 +52,8 @@ fun ChatBubble(
     peerName: String? = null,
     onRetryClick: ((Message) -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
-    onImageClick: ((String) -> Unit)? = null
+    onImageClick: ((String) -> Unit)? = null,
+    onVideoClick: ((String) -> Unit)? = null
 ) {
     val bubbleShape = if (isOutgoing) {
         RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp)
@@ -176,7 +177,15 @@ fun ChatBubble(
                         } else {
                             message.localUri ?: ""
                         }
-                        val context = androidx.compose.ui.platform.LocalContext.current
+                        var showVideoDialog by remember { mutableStateOf(false) }
+
+                        if (showVideoDialog && videoSource.isNotBlank()) {
+                            VideoPlayerOverlay(
+                                videoUrl = videoSource,
+                                onDismiss = { showVideoDialog = false }
+                            )
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -186,22 +195,10 @@ fun ChatBubble(
                                 .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                                 .clickable {
                                     if (videoSource.isNotBlank()) {
-                                        try {
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                                setDataAndType(Uri.parse(videoSource), "video/*")
-                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            }
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            try {
-                                                val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(videoSource)).apply {
-                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                }
-                                                context.startActivity(fallbackIntent)
-                                            } catch (e2: Exception) {
-                                                android.widget.Toast.makeText(context, "Cannot play video: ${e.message ?: e2.message}", android.widget.Toast.LENGTH_SHORT).show()
-                                            }
+                                        if (onVideoClick != null) {
+                                            onVideoClick(videoSource)
+                                        } else {
+                                            showVideoDialog = true
                                         }
                                     }
                                 },
@@ -218,15 +215,17 @@ fun ChatBubble(
                             
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF00B0FF).copy(alpha = 0.3f),
-                                modifier = Modifier.size(52.dp).border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape)
+                                color = Color(0xFF00B0FF).copy(alpha = 0.35f),
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .border(1.5.dp, Color(0xFF00E5FF), CircleShape)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = "Play Video",
                                         tint = Color.White,
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(34.dp)
                                     )
                                 }
                             }

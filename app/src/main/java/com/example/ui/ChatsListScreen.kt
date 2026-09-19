@@ -340,28 +340,29 @@ fun ChatsListScreen(
     }
     val chatListState = rememberLazyListState()
 
-    val darkSurfaceBg = Color(0xFF090D16)
-    val accentCyan = Color(0xFF38BDF8)
+    val darkSurfaceBg = Color(0xFF000000)
+    val electricCyan = Color(0xFF00E5FF)
+    val electricBlue = Color(0xFF0082FB)
 
     Scaffold(
         topBar = {
-            // Sleek Modern Top Bar with Profile on Left and Gear Settings on Right
+            // Dark Neon Glassmorphic Top Bar matching Image 1
             Surface(
                 color = darkSurfaceBg,
-                shadowElevation = 4.dp
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Left: Profile Picture with Small Circular Status Icon / Ring above it
+                        // Left: Profile Picture in Dark Glass Circle with Neon Border & Green Online Dot
                         val contextLocal = LocalContext.current
                         val localRingId = com.example.util.SessionManager.getProfileRingId(contextLocal)
                         val userRingId = if (localRingId != "none") localRingId else (currentUserProfile?.profileRingId ?: "none")
@@ -378,10 +379,17 @@ fun ChatsListScreen(
                                 .padding(2.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ProfileRingBox(ringId = userRingId, ringPadding = 1.dp, borderWidth = 2.5.dp) {
-                                val initialChar = currentUserProfile?.displayName?.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "P"
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0A0E17))
+                                    .border(2.dp, Brush.linearGradient(listOf(electricCyan, electricBlue)), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val initialChar = currentUserProfile?.displayName?.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "H"
                                 val fallbackGradient = Brush.linearGradient(
-                                    listOf(Color(0xFF8B5CF6), Color(0xFF00F2FE))
+                                    listOf(Color(0xFF0082FB), Color(0xFF00E5FF))
                                 )
 
                                 if (!displayAvatarUrl.isNullOrEmpty() && (displayAvatarUrl.startsWith("http") || displayAvatarUrl.startsWith("content://") || displayAvatarUrl.startsWith("file://"))) {
@@ -402,7 +410,7 @@ fun ChatsListScreen(
                                                 modifier = Modifier.fillMaxSize().background(fallbackGradient),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(initialChar, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                                Text(initialChar, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                             }
                                         },
                                         error = {
@@ -410,15 +418,14 @@ fun ChatsListScreen(
                                                 modifier = Modifier.fillMaxSize().background(fallbackGradient),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(initialChar, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                                Text(initialChar, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                             }
                                         }
                                     )
                                 } else {
                                     Box(
                                         modifier = Modifier
-                                            .size(42.dp)
-                                            .clip(CircleShape)
+                                            .fillMaxSize()
                                             .background(fallbackGradient),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -426,86 +433,104 @@ fun ChatsListScreen(
                                             text = initialChar,
                                             color = Color.White,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp
+                                            fontSize = 18.sp
                                         )
                                     }
                                 }
                             }
 
-                            // Small circular indicator icon on the avatar
+                            // Green online status badge at top right
                             Box(
                                 modifier = Modifier
-                                    .size(13.dp)
+                                    .size(12.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
+                                    .background(Color(0xFF00FF66))
                                     .border(2.dp, darkSurfaceBg, CircleShape)
                                     .align(Alignment.TopEnd)
                             )
                         }
 
-                        // Center: App Branding Centered Horizontally
-                        Box(
-                            contentAlignment = Alignment.Center,
+                        // Center: App Title PLENXO with subtle electric cyan glowing line underneath
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
                                 text = "PLENXO",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 19.sp,
-                                letterSpacing = 2.sp,
-                                color = Color.White
+                                fontWeight = FontWeight.Black,
+                                fontSize = 22.sp,
+                                letterSpacing = 2.5.sp,
+                                color = electricCyan
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(80.dp)
+                                    .height(2.dp)
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(Color.Transparent, electricCyan, electricBlue, Color.Transparent)
+                                        )
+                                    )
                             )
                         }
 
-                        // Right: Notification & Gear Settings Icon
+                        // Right: Circular Glass Notification Bell & Gear Settings Icons matching Image 1
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Chat Requests / Notifications Button
-                            IconButton(
-                                onClick = { viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS) },
-                                modifier = Modifier.testTag("chat_requests_button")
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0A111F))
+                                    .border(1.5.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                    .clickable { viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS) },
+                                contentAlignment = Alignment.Center
                             ) {
-                                BadgedBox(
-                                    badge = {
-                                        if (pendingFriendRequests.isNotEmpty()) {
-                                            Badge(
-                                                containerColor = Color(0xFFEF4444),
-                                                contentColor = Color.White
-                                            ) {
-                                                Text(pendingFriendRequests.size.toString(), fontSize = 10.sp)
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Notifications,
-                                        contentDescription = "Chat Requests",
-                                        tint = if (pendingFriendRequests.isNotEmpty()) accentCyan else Color(0xFF94A3B8),
-                                        modifier = Modifier.size(24.dp)
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = electricCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                if (pendingFriendRequests.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(electricCyan)
+                                            .align(Alignment.TopEnd)
+                                            .padding(2.dp)
                                     )
                                 }
                             }
 
                             // Settings Gear Icon
-                            IconButton(
-                                onClick = { viewModel.navigateToScreen(PlenxoScreen.SETTINGS_NORMAL) },
-                                modifier = Modifier.testTag("settings_button")
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF0A111F))
+                                    .border(1.5.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                    .clickable { viewModel.navigateToScreen(PlenxoScreen.SETTINGS_NORMAL) },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Settings,
                                     contentDescription = "Settings",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = electricCyan,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Search Bar for Added Users
+                    // Glowing Search Bar matching Image 1
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -513,15 +538,15 @@ fun ChatsListScreen(
                             Text(
                                 "Search added users & messages...",
                                 color = Color(0xFF64748B),
-                                fontSize = 13.sp
+                                fontSize = 14.sp
                             )
                         },
                         leadingIcon = {
                             Icon(
                                 Icons.Outlined.Search,
                                 contentDescription = "Search",
-                                tint = Color(0xFF64748B),
-                                modifier = Modifier.size(20.dp)
+                                tint = electricCyan,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         trailingIcon = {
@@ -538,31 +563,32 @@ fun ChatsListScreen(
                         },
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             color = Color.White,
                             lineHeight = 18.sp,
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(22.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF131B2E),
-                            unfocusedContainerColor = Color(0xFF131B2E),
-                            focusedBorderColor = primaryColor.copy(alpha = 0.6f),
-                            unfocusedBorderColor = Color(0xFF1E293B),
+                            focusedContainerColor = Color(0xFF0A0E17),
+                            unfocusedContainerColor = Color(0xFF0A0E17),
+                            focusedBorderColor = electricCyan,
+                            unfocusedBorderColor = electricCyan.copy(alpha = 0.8f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 48.dp, max = 52.dp)
+                            .heightIn(min = 50.dp, max = 54.dp)
+                            .shadow(8.dp, RoundedCornerShape(22.dp), ambientColor = electricCyan, spotColor = electricCyan)
                             .testTag("chats_search_input")
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Modern Category Filter Pills
+                    // Modern Category Filter Pills matching Image 1
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         item {
@@ -570,7 +596,7 @@ fun ChatsListScreen(
                                 label = "All",
                                 count = chats.size,
                                 isSelected = selectedFilter == "All",
-                                activeColor = primaryColor,
+                                activeColor = electricCyan,
                                 onClick = { selectedFilter = "All" }
                             )
                         }
@@ -579,7 +605,7 @@ fun ChatsListScreen(
                                 label = "Unread",
                                 count = unreadTotalCount,
                                 isSelected = selectedFilter == "Unread",
-                                activeColor = primaryColor,
+                                activeColor = electricCyan,
                                 onClick = { selectedFilter = "Unread" }
                             )
                         }
@@ -588,7 +614,7 @@ fun ChatsListScreen(
                                 label = "Pinned",
                                 count = pinnedTotalCount,
                                 isSelected = selectedFilter == "Pinned",
-                                activeColor = primaryColor,
+                                activeColor = electricCyan,
                                 onClick = { selectedFilter = "Pinned" }
                             )
                         }
@@ -597,21 +623,25 @@ fun ChatsListScreen(
             }
         },
         floatingActionButton = {
-            // Plus icon at the bottom right side to search & add users
-            FloatingActionButton(
-                onClick = { viewModel.navigateToScreen(PlenxoScreen.DISCOVERY) },
-                containerColor = primaryColor,
-                contentColor = Color.White,
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp),
+            // Neon Cyan Squircle Floating Action Button matching Image 1
+            Box(
                 modifier = Modifier
-                    .padding(end = 8.dp, bottom = 8.dp)
-                    .testTag("fab_add_friend")
+                    .padding(end = 8.dp, bottom = 12.dp)
+                    .size(56.dp)
+                    .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = electricCyan, spotColor = electricCyan)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.linearGradient(listOf(electricCyan, electricBlue))
+                    )
+                    .clickable { viewModel.navigateToScreen(PlenxoScreen.DISCOVERY) }
+                    .testTag("fab_add_friend"),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Search and Add Users",
-                    modifier = Modifier.size(28.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
                 )
             }
         },
@@ -650,7 +680,7 @@ fun ChatsListScreen(
                                 Icon(
                                     Icons.Outlined.PersonAdd,
                                     contentDescription = "Requests",
-                                    tint = accentCyan,
+                                    tint = electricCyan,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -665,7 +695,7 @@ fun ChatsListScreen(
                                 onClick = { viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS) },
                                 contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("View All", fontSize = 12.sp, color = accentCyan)
+                                Text("View All", fontSize = 12.sp, color = electricCyan)
                             }
                         }
 
@@ -730,7 +760,7 @@ fun ChatsListScreen(
                                             Text(
                                                 text = if (reqSenderPx.startsWith("PX-")) reqSenderPx else "PX-$reqSenderPx",
                                                 fontSize = 11.sp,
-                                                color = accentCyan
+                                                color = electricCyan
                                             )
                                         }
                                     }
@@ -959,7 +989,7 @@ fun ChatsListScreen(
 }
 
 /**
- * Filter Pill Component for Top Bar Selection
+ * Filter Pill Component for Top Bar Selection matching Image 1
  */
 @Composable
 private fun FilterPill(
@@ -969,23 +999,29 @@ private fun FilterPill(
     activeColor: Color,
     onClick: () -> Unit
 ) {
-    val containerBg = if (isSelected) activeColor else Color(0xFF131B2E)
+    val electricCyan = Color(0xFF00E5FF)
+    val electricBlue = Color(0xFF0082FB)
+    val containerBg = if (isSelected) {
+        Brush.linearGradient(listOf(electricBlue, electricCyan))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFF0A0E17), Color(0xFF0A0E17)))
+    }
     val textColor = if (isSelected) Color.White else Color(0xFF94A3B8)
-    val borderColor = if (isSelected) activeColor else Color(0xFF1E293B)
+    val borderColor = electricCyan.copy(alpha = if (isSelected) 1f else 0.6f)
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(containerBg)
-            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(22.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = label,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 color = textColor
             )
@@ -995,15 +1031,15 @@ private fun FilterPill(
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(
-                            if (isSelected) Color.White.copy(alpha = 0.25f) else Color(0xFF1E293B)
+                            if (isSelected) Color.White.copy(alpha = 0.3f) else Color(0xFF131B2E)
                         )
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = count.toString(),
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else Color(0xFF38BDF8)
+                        color = Color.White
                     )
                 }
             }
@@ -1012,7 +1048,7 @@ private fun FilterPill(
 }
 
 /**
- * Modern Card Item for Main Screen User Conversations
+ * Modern Card Item for Main Screen User Conversations matching Image 1
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1033,21 +1069,24 @@ fun ModernChatCardItem(
     onDeleteChat: () -> Unit,
     onClick: () -> Unit
 ) {
+    val electricCyan = Color(0xFF00E5FF)
+    val electricBlue = Color(0xFF0082FB)
     val formatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
     val timeString = remember(chat.lastMessageTimestamp) {
         chat.lastMessageTimestamp?.let { formatter.format(Date(it)) } ?: ""
     }
     var showMenu by remember { mutableStateOf(false) }
 
-    val cardBg = if (isPinned) Color(0xFF16223B) else Color(0xFF111827)
-    val cardBorder = if (isPinned) primaryColor.copy(alpha = 0.35f) else Color(0xFF1E293B)
+    val cardBg = Color(0xFF0A0E17)
+    val cardBorder = Brush.linearGradient(listOf(electricCyan, electricBlue))
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = electricCyan, spotColor = electricCyan)
+            .clip(RoundedCornerShape(18.dp))
             .background(cardBg)
-            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
+            .border(1.5.dp, cardBorder, RoundedCornerShape(18.dp))
     ) {
         Row(
             modifier = Modifier
@@ -1056,56 +1095,54 @@ fun ModernChatCardItem(
                     onClick = onClick,
                     onLongClick = { showMenu = true }
                 )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar with Ring & Online Indicator
+            // Avatar Frame with Glowing Ring & Green Online Indicator matching Image 1
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .clickable { onAvatarClick() },
                 contentAlignment = Alignment.Center
             ) {
-                ProfileRingBox(ringId = profileRingId, ringPadding = 1.5.dp, borderWidth = 2.5.dp) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF1E293B)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (profilePicUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(profilePicUrl)
-                                    .crossfade(true)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .memoryCachePolicy(CachePolicy.ENABLED)
-                                    .build(),
-                                placeholder = painterResource(android.R.drawable.ic_menu_gallery),
-                                error = painterResource(android.R.drawable.ic_menu_report_image),
-                                contentDescription = "User Avatar",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Text(
-                                text = recipientName.take(1).uppercase(),
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryColor
-                            )
-                        }
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0A0E17))
+                        .border(2.dp, Brush.linearGradient(listOf(electricCyan, electricBlue)), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (profilePicUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(profilePicUrl)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            placeholder = painterResource(android.R.drawable.ic_menu_gallery),
+                            error = painterResource(android.R.drawable.ic_menu_report_image),
+                            contentDescription = "User Avatar",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = recipientName.take(1).uppercase(),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = electricCyan
+                        )
                     }
                 }
 
-                // Presence Dot
-                val presenceColor = if (presenceState == "online") Color(0xFF10B981) else Color(0xFF64748B)
+                // Green Presence Dot
                 Box(
                     modifier = Modifier
                         .size(13.dp)
                         .clip(CircleShape)
-                        .background(presenceColor)
+                        .background(Color(0xFF00FF66))
                         .border(2.dp, cardBg, CircleShape)
                         .align(Alignment.BottomEnd)
                 )
@@ -1113,7 +1150,7 @@ fun ModernChatCardItem(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // User Info and Last Message
+            // User Info, Plenxo ID & Last Message matching Image 1
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1127,7 +1164,7 @@ fun ModernChatCardItem(
                         Text(
                             text = recipientName,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1138,8 +1175,8 @@ fun ModernChatCardItem(
                             Icon(
                                 imageVector = Icons.Default.PushPin,
                                 contentDescription = "Pinned",
-                                tint = primaryColor,
-                                modifier = Modifier.size(13.dp)
+                                tint = electricCyan,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
 
@@ -1149,7 +1186,7 @@ fun ModernChatCardItem(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Locked",
                                 tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
@@ -1158,58 +1195,71 @@ fun ModernChatCardItem(
                     if (timeString.isNotBlank()) {
                         Text(
                             text = timeString,
-                            fontSize = 11.sp,
-                            color = if (unreadCount > 0) primaryColor else Color(0xFF64748B),
-                            fontWeight = if (unreadCount > 0) FontWeight.Bold else FontWeight.Normal
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Normal
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // Plenxo ID Pill Badge
+                // Plenxo ID Pill Text
                 if (plenxoId.isNotBlank()) {
                     val cleanPx = plenxoId.trim().removePrefix("@").removePrefix("#")
                     val displayPx = if (cleanPx.startsWith("PX-", ignoreCase = true)) cleanPx.uppercase() else "PX-$cleanPx"
                     Text(
                         text = displayPx,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF38BDF8)
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = electricCyan
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                // Last Message Preview & Unread Pill
+                // Last Message Preview with Icon & Unread Badge
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = if (chat.lastMessage.isBlank()) "Tap to start conversation" else chat.lastMessage,
-                        fontSize = 13.sp,
-                        color = if (unreadCount > 0) Color.White else Color(0xFF94A3B8),
-                        fontWeight = if (unreadCount > 0) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        val isVoiceNote = chat.lastMessage.contains("voice", ignoreCase = true) || chat.lastMessage.contains("audio", ignoreCase = true)
+                        Icon(
+                            imageVector = if (isVoiceNote) Icons.Default.Mic else Icons.Default.ChatBubbleOutline,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (chat.lastMessage.isBlank()) "Chat started" else chat.lastMessage,
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
                     if (unreadCount > 0) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
+                                .size(22.dp)
                                 .clip(CircleShape)
-                                .background(primaryColor)
-                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                                .background(electricCyan)
+                                .shadow(4.dp, CircleShape, ambientColor = electricCyan, spotColor = electricCyan),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                                color = Color.White,
+                                color = Color.Black,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Black
                             )
                         }
                     }

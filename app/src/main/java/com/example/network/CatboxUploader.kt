@@ -41,15 +41,25 @@ object CatboxUploader {
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val request = original.newBuilder()
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .build()
+                chain.proceed(request)
+            }
             .build()
     }
 
     /**
-     * Uploads a File payload to Catbox API using multipart/form-data.
-     * Returns direct RAW PLAIN TEXT URL string (e.g., https://files.catbox.moe/abc123.m4a).
+     * Uploads a File payload to remote storage using multi-tiered uploader fallbacks:
+     * 1. Catbox Primary (https://catbox.moe/user/api.php)
+     * 2. Litterbox Secondary (https://litterbox.catbox.moe/resources/internals/api.php)
+     * 3. tmpfiles.org CDN (https://tmpfiles.org/api/v1/upload)
+     * 4. Base64 Data URL Fallback (data:<mime>;base64,...)
      */
     suspend fun uploadFile(
         file: File,
@@ -61,7 +71,7 @@ object CatboxUploader {
         }
 
         val resolvedMime = mimeType?.takeIf { it.isNotBlank() } ?: determineMimeType(file.name)
-        Log.d(TAG, "Uploading file '${file.name}' (${file.length()} bytes, mime: $resolvedMime) to Catbox...")
+        Log.d(TAG, "Uploading file '${file.name}' (${file.length()} bytes, mime: $resolvedMime)...")
 
         onProgress?.invoke(5)
 
@@ -72,30 +82,115 @@ object CatboxUploader {
             rawRequestBody
         }
 
-        val multipartBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("reqtype", REQTYPE_FILEUPLOAD)
-            .addFormDataPart("userhash", CATBOX_USERHASH)
-            .addFormDataPart("fileToUpload", file.name, uploadRequestBody)
-            .build()
+        // --- TIER 1: Catbox Primary ---
+        try {
+            Log.d(TAG, "Attempting Tier 1 (Catbox primary)...")
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("reqtype", REQTYPE_FILEUPLOAD)
+                .addFormDataPart("userhash", CATBOX_USERHASH)
+                .addFormDataPart("fileToUpload", file.name, uploadRequestBody)
+                .build()
 
-        val request = Request.Builder()
-            .url(CATBOX_URL)
-            .post(multipartBody)
-            .build()
+            val request = Request.Builder()
+                .url(CATBOX_URL)
+                .post(multipartBody)
+                .build()
 
-        val response = client.newCall(request).execute()
-        val responseCode = response.code
-        val responseText = response.body?.string()?.trim() ?: ""
+            val response = client.newCall(request).execute()
+            val responseCode = response.code
+            val responseText = response.body?.string()?.trim() ?: ""
 
-        if (!response.isSuccessful || responseText.isEmpty() || !responseText.startsWith("http")) {
-            Log.e(TAG, "Catbox upload failed. HTTP $responseCode: $responseText")
-            throw IllegalStateException("Failed to upload file to Catbox. HTTP $responseCode: $responseText")
+            if (response.isSuccessful && responseText.isNotBlank() && responseText.startsWith("http")) {
+                onProgress?.invoke(100)
+                Log.d(TAG, "Catbox primary upload succeeded! URL: $responseText")
+                return@withContext responseText
+            } else {
+                Log.w(TAG, "Catbox primary failed (HTTP $responseCode): $responseText")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Catbox primary network error: ${e.message}")
         }
 
-        onProgress?.invoke(100)
-        Log.d(TAG, "Catbox upload succeeded! URL: $responseText")
-        responseText
+        // --- TIER 2: Litterbox Secondary ---
+        try {
+            Log.d(TAG, "Attempting Tier 2 (Litterbox secondary)...")
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("reqtype", "fileupload")
+                .addFormDataPart("time", "72h")
+                .addFormDataPart("fileToUpload", file.name, file.asRequestBody(resolvedMime.toMediaTypeOrNull()))
+                .build()
+
+            val request = Request.Builder()
+                .url("https://litterbox.catbox.moe/resources/internals/api.php")
+                .post(multipartBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseCode = response.code
+            val responseText = response.body?.string()?.trim() ?: ""
+
+            if (response.isSuccessful && responseText.isNotBlank() && responseText.startsWith("http")) {
+                onProgress?.invoke(100)
+                Log.d(TAG, "Litterbox upload succeeded! URL: $responseText")
+                return@withContext responseText
+            } else {
+                Log.w(TAG, "Litterbox failed (HTTP $responseCode): $responseText")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Litterbox network error: ${e.message}")
+        }
+
+        // --- TIER 3: tmpfiles.org ---
+        try {
+            Log.d(TAG, "Attempting Tier 3 (tmpfiles.org)...")
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody(resolvedMime.toMediaTypeOrNull()))
+                .build()
+
+            val request = Request.Builder()
+                .url("https://tmpfiles.org/api/v1/upload")
+                .post(multipartBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseCode = response.code
+            val responseText = response.body?.string()?.trim() ?: ""
+
+            if (response.isSuccessful && responseText.isNotBlank() && responseText.contains("tmpfiles.org")) {
+                val json = org.json.JSONObject(responseText)
+                if (json.optString("status") == "success") {
+                    val pageUrl = json.getJSONObject("data").getString("url")
+                    val directUrl = pageUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
+                    onProgress?.invoke(100)
+                    Log.d(TAG, "tmpfiles.org upload succeeded! URL: $directUrl")
+                    return@withContext directUrl
+                }
+            } else {
+                Log.w(TAG, "tmpfiles.org failed (HTTP $responseCode): $responseText")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "tmpfiles.org network error: ${e.message}")
+        }
+
+        // --- TIER 4: Base64 Data URL Fallback ---
+        if (resolvedMime.startsWith("image/") || file.length() < 2 * 1024 * 1024) {
+            try {
+                Log.d(TAG, "All HTTP CDN uploader hosts failed or blocked. Converting file to Base64 Data URL fallback...")
+                val bytes = file.readBytes()
+                val base64Str = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                val dataUrl = "data:$resolvedMime;base64,$base64Str"
+                onProgress?.invoke(100)
+                Log.d(TAG, "Base64 Data URL generated successfully (${dataUrl.length} chars).")
+                return@withContext dataUrl
+            } catch (e: Exception) {
+                Log.e(TAG, "Base64 encoding fallback error: ${e.message}", e)
+            }
+        }
+
+        throw IllegalStateException("Failed to upload file after trying Catbox, Litterbox, tmpfiles, and Base64 fallback.")
     }
 
     /**

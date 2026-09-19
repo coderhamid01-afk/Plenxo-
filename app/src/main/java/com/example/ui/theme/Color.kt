@@ -2,30 +2,37 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Global Plenxo Logo-Derived Brand Palette
-val PlenxoElectricViolet = Color(0xFF8A2BE2) // Dominant vibrant logo violet
-val PlenxoNeonCyan = Color(0xFF00E5FF)       // Highlight accent cyan
-val PlenxoDeepSpace = Color(0xFF0A0E1A)       // Sleek dark space canvas
-val PlenxoGlassSurface = Color(0x1AFFFFFF)    // Translucent glass surface
-val PlenxoCardSurfaceDark = Color(0xFF131824) // Dark card surface
-val PlenxoCardSurfaceLight = Color(0xFFFFFFFF)// Light card surface
+// Plenxo OLED Dark Glassmorphic Design System Tokens
+val ElectricCyan = Color(0xFF00E5FF)          // Primary Accent
+val DeepBlue = Color(0xFF0082FB)              // Secondary Accent
+val PitchBlack = Color(0xFF000000)            // True OLED Background
+val DarkGlassSurface = Color(0xCC12192A)       // Glass Surface (80% Opacity #12192A)
+val SolidDarkGlassSurface = Color(0xFF12192A)    // Solid Dark Glass Surface
+val TranslucentCyanBorder = Color(0x4D00E5FF)    // Subtle 1dp Translucent Cyan Border (30% Opacity)
 
-// Color Aliases and Gradients
-val PlenxoPurple = PlenxoElectricViolet
-val PlenxoCyan = PlenxoNeonCyan
-val PlenxoIndigo = Color(0xFF6366F1)
-val PlenxoBlue = Color(0xFF3B82F6)
-val PlenxoPink = Color(0xFFEC4899)
+// Aliases for global design system compatibility
+val PlenxoElectricViolet = DeepBlue
+val PlenxoNeonCyan = ElectricCyan
+val PlenxoDeepSpace = PitchBlack
+val PlenxoGlassSurface = DarkGlassSurface
+val PlenxoCardSurfaceDark = SolidDarkGlassSurface
+val PlenxoCardSurfaceLight = Color(0xFFFFFFFF)
 
-val DarkBackground = PlenxoDeepSpace
-val DarkSurface = Color(0xFF111827)
-val DarkCardBg = PlenxoCardSurfaceDark
-val DarkCardBorder = Color(0xFF1E293B)
+val PlenxoPurple = DeepBlue
+val PlenxoCyan = ElectricCyan
+val PlenxoIndigo = DeepBlue
+val PlenxoBlue = DeepBlue
+val PlenxoPink = ElectricCyan
+
+val DarkBackground = PitchBlack
+val DarkSurface = SolidDarkGlassSurface
+val DarkCardBg = SolidDarkGlassSurface
+val DarkCardBorder = TranslucentCyanBorder
 
 val PlenxoTextWhite = Color(0xFFFFFFFF)
-val PlenxoTextMutedDark = Color(0xFFA0AEC0)
+val PlenxoTextMutedDark = Color(0xFF94A3B8)
 val PlenxoTextDark = Color(0xFF0A0E1A)
-val PlenxoTextMutedLight = Color(0xFF4A5568)
+val PlenxoTextMutedLight = Color(0xFF64748B)
 
 val PlenxoError = Color(0xFFFF4D4D)
 val PlenxoSuccess = Color(0xFF00E676)

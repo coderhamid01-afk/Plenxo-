@@ -326,10 +326,23 @@ object SessionManager {
     }
 
     fun saveProfileRingId(context: Context, ringId: String) {
-        getEncryptedPrefs(context)?.edit()?.putString("key_profile_ring_id", ringId)?.apply()
+        getEncryptedPrefs(context)?.edit()
+            ?.putString("key_profile_ring_id", ringId)
+            ?.putString("key_active_profile_ring", ringId)
+            ?.apply()
     }
     fun getProfileRingId(context: Context): String {
-        return getEncryptedPrefs(context)?.getString("key_profile_ring_id", "none") ?: "none"
+        return getEncryptedPrefs(context)?.getString("key_active_profile_ring", null)
+            ?: getEncryptedPrefs(context)?.getString("key_profile_ring_id", "none")
+            ?: "none"
+    }
+
+    fun saveActiveProfileRing(context: Context, ringId: String) {
+        saveProfileRingId(context, ringId)
+    }
+
+    fun getActiveProfileRing(context: Context): String {
+        return getProfileRingId(context)
     }
 
     fun saveOnboardingCompleted(context: Context, completed: Boolean) {

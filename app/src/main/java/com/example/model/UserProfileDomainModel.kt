@@ -20,6 +20,7 @@ data class UserProfileDomainModel(
     @get:PropertyName("avatarUrl") @set:PropertyName("avatarUrl") var avatarUrl: String = "",
     @get:PropertyName("userCode") @set:PropertyName("userCode") var userCode: String = "",
     @get:PropertyName("plenxoId") @set:PropertyName("plenxoId") var plenxoId: String = "",
+    @get:PropertyName("activeProfileRing") @set:PropertyName("activeProfileRing") var activeProfileRing: String? = null,
     @get:PropertyName("selectedRingId") @set:PropertyName("selectedRingId") var selectedRingId: String = "NONE",
     @get:PropertyName("profileRingId") @set:PropertyName("profileRingId") var profileRingId: String = "none",
     @get:PropertyName("profileRing") @set:PropertyName("profileRing") var profileRing: String? = null,
@@ -27,6 +28,13 @@ data class UserProfileDomainModel(
     @get:PropertyName("phoneNumber") @set:PropertyName("phoneNumber") var phoneNumber: String = "",
     @get:PropertyName("leagueData") @set:PropertyName("leagueData") var leagueData: LeagueData = LeagueData()
 ) {
+    val effectiveRingId: String
+        get() = activeProfileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRingId.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: profileRing?.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: selectedRingId.takeIf { it.isNotBlank() && it != "none" && it != "NONE" }
+            ?: "none"
+
     val resolvedDisplayName: String
         get() = displayName.takeIf { it.isNotBlank() && it != "User" }
             ?: name.takeIf { it.isNotBlank() && it != "User" }

@@ -28,6 +28,7 @@ interface UserRepository {
     suspend fun updateUserProfile(uid: String, updates: Map<String, Any?>): Boolean
     suspend fun updateUserStatus(uid: String, status: String, lastSeen: Long = System.currentTimeMillis()): Boolean
     suspend fun updateFcmToken(uid: String, token: String): Boolean
+    suspend fun updateActiveProfileRing(uid: String, selectedRingId: String): Boolean
     fun observeUserData(uid: String): Flow<Map<String, Any>?>
     suspend fun getUserData(uid: String): Map<String, Any>?
 
@@ -154,6 +155,18 @@ class UserRepositoryImpl : UserRepository {
         if (uid.isBlank() || token.isBlank()) return false
         val updates = mapOf(
             "fcmToken" to token,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        return updateUserProfile(uid, updates)
+    }
+
+    override suspend fun updateActiveProfileRing(uid: String, selectedRingId: String): Boolean {
+        if (uid.isBlank()) return false
+        val updates = mapOf(
+            "activeProfileRing" to selectedRingId,
+            "profileRingId" to selectedRingId,
+            "profileRing" to selectedRingId,
+            "selectedRingId" to selectedRingId,
             "updatedAt" to FieldValue.serverTimestamp()
         )
         return updateUserProfile(uid, updates)

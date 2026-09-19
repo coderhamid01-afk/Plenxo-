@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -11,11 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -159,11 +162,45 @@ fun SplashScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.app_logo),
-                contentDescription = "Plenxo Logo",
-                modifier = Modifier.size(110.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .shadow(
+                        elevation = 24.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        ambientColor = Color(0xFF00E5FF).copy(alpha = 0.6f),
+                        spotColor = Color(0xFF0066FF).copy(alpha = 0.7f)
+                    )
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF0F172A),
+                                Color(0xFF050811)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF00E5FF),
+                                Color(0xFF0066FF).copy(alpha = 0.5f),
+                                Color(0xFF00E5FF).copy(alpha = 0.3f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(22.dp)
+                    )
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    contentDescription = "Plenxo Logo",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
