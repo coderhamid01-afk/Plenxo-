@@ -76,14 +76,19 @@ fun VoiceNoteBubble(
         }
     }
 
-    val contentColor = Color.White
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val activeBarColor = if (isSentByCurrentUser) MaterialTheme.colorScheme.onPrimary else primaryColor
+    val inactiveBarColor = if (isSentByCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+    val bubbleBg = if (isSentByCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val iconBg = if (isSentByCurrentUser) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    val iconTint = if (isSentByCurrentUser) MaterialTheme.colorScheme.onPrimary else primaryColor
 
     Box(
         modifier = modifier
             .padding(vertical = 4.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF12192A).copy(alpha = 0.88f))
-            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(bubbleBg)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
     ) {
         Row(
             modifier = Modifier
@@ -92,22 +97,22 @@ fun VoiceNoteBubble(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Dark Neon Play/Pause Button
+            // Play/Pause Button
             IconButton(
                 onClick = { togglePlayback() },
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color(0xFF00B0FF).copy(alpha = 0.3f),
-                    contentColor = contentColor
+                    containerColor = iconBg,
+                    contentColor = iconTint
                 ),
                 modifier = Modifier
                     .size(42.dp)
-                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                    .clip(CircleShape)
                     .testTag("play_pause_voice_btn")
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause Voice Note" else "Play Voice Note",
-                    tint = Color.White,
+                    tint = iconTint,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -149,9 +154,8 @@ fun VoiceNoteBubble(
                         val barFraction = index.toFloat() / barCount.toFloat()
                         val isPlayed = barFraction <= progress
 
-                        val color = if (isPlayed) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.35f)
+                        val color = if (isPlayed) activeBarColor else inactiveBarColor
 
-                        // Dynamic height animation for active audio playback
                         val heightMultiplier = if (isPlaying) {
                             val phaseOffset = (index % 4) * 0.25f
                             0.7f + 0.6f * ((waveAnimPhase + phaseOffset) % 1f)
@@ -174,7 +178,6 @@ fun VoiceNoteBubble(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Time Duration Text in required format: 0:18 / 0:45
                 val posSec = (currentPosMs / 1000).toInt()
                 val totalSec = if (totalDurMs > 1L) (totalDurMs / 1000).toInt() else 0
 
@@ -189,7 +192,7 @@ fun VoiceNoteBubble(
                     Text(
                         text = if (isCurrentAudio && totalDurMs > 1L) "$posStr / $totalStr" else if (totalSec > 0) totalStr else "Voice Note",
                         fontSize = 11.sp,
-                        color = Color(0xFF00E5FF),
+                        color = iconTint,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.3.sp
                     )

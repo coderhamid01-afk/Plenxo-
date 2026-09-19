@@ -273,8 +273,8 @@ fun UserAddActionButton(
         shape = RoundedCornerShape(20.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF58A6FF),
-            contentColor = Color.White
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
         )
     ) {
         Icon(

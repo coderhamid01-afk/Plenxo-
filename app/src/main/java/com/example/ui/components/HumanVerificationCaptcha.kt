@@ -674,7 +674,7 @@ private fun CaptchaStep2Puzzle(
                 val targetBorder0 by animateColorAsState(
                     targetValue = when {
                         isPlaced0 -> primaryColor
-                        isHovering0 -> Color(0xFF38BDF8)
+                        isHovering0 -> Color(0xFF2563EB)
                         else -> Color(0xFF475569).copy(alpha = 0.5f)
                     },
                     label = "border0"
@@ -686,7 +686,7 @@ private fun CaptchaStep2Puzzle(
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (isPlaced0) primaryColor.copy(alpha = 0.18f)
-                            else if (isHovering0) Color(0xFF38BDF8).copy(alpha = 0.12f)
+                            else if (isHovering0) Color(0xFF2563EB).copy(alpha = 0.12f)
                             else Color(0xFF1E293B).copy(alpha = 0.5f)
                         )
                         .border(1.dp, targetBorder0, RoundedCornerShape(12.dp))
@@ -706,7 +706,7 @@ private fun CaptchaStep2Puzzle(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = if (isHovering0) Color(0xFF38BDF8) else Color(0xFF64748B),
+                                tint = if (isHovering0) Color(0xFF2563EB) else Color(0xFF64748B),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(text = "Slot 1", fontSize = 10.sp, color = Color(0xFF64748B))
@@ -718,7 +718,7 @@ private fun CaptchaStep2Puzzle(
                 val targetBorder1 by animateColorAsState(
                     targetValue = when {
                         isPlaced1 -> primaryColor
-                        isHovering1 -> Color(0xFF38BDF8)
+                        isHovering1 -> Color(0xFF2563EB)
                         else -> Color(0xFF475569).copy(alpha = 0.5f)
                     },
                     label = "border1"
@@ -730,7 +730,7 @@ private fun CaptchaStep2Puzzle(
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (isPlaced1) primaryColor.copy(alpha = 0.18f)
-                            else if (isHovering1) Color(0xFF38BDF8).copy(alpha = 0.12f)
+                            else if (isHovering1) Color(0xFF2563EB).copy(alpha = 0.12f)
                             else Color(0xFF1E293B).copy(alpha = 0.5f)
                         )
                         .border(1.dp, targetBorder1, RoundedCornerShape(12.dp))
@@ -750,7 +750,7 @@ private fun CaptchaStep2Puzzle(
                             Icon(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = null,
-                                tint = if (isHovering1) Color(0xFF38BDF8) else Color(0xFF64748B),
+                                tint = if (isHovering1) Color(0xFF2563EB) else Color(0xFF64748B),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(text = "Slot 2", fontSize = 10.sp, color = Color(0xFF64748B))
@@ -762,7 +762,7 @@ private fun CaptchaStep2Puzzle(
                 val targetBorder2 by animateColorAsState(
                     targetValue = when {
                         isPlaced2 -> primaryColor
-                        isHovering2 -> Color(0xFF38BDF8)
+                        isHovering2 -> Color(0xFF2563EB)
                         else -> Color(0xFF475569).copy(alpha = 0.5f)
                     },
                     label = "border2"
@@ -774,7 +774,7 @@ private fun CaptchaStep2Puzzle(
                         .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (isPlaced2) primaryColor.copy(alpha = 0.18f)
-                            else if (isHovering2) Color(0xFF38BDF8).copy(alpha = 0.12f)
+                            else if (isHovering2) Color(0xFF2563EB).copy(alpha = 0.12f)
                             else Color(0xFF1E293B).copy(alpha = 0.5f)
                         )
                         .border(1.dp, targetBorder2, RoundedCornerShape(12.dp))
@@ -794,7 +794,7 @@ private fun CaptchaStep2Puzzle(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = if (isHovering2) Color(0xFF38BDF8) else Color(0xFF64748B),
+                                tint = if (isHovering2) Color(0xFF2563EB) else Color(0xFF64748B),
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(text = "Slot 3", fontSize = 10.sp, color = Color(0xFF64748B))
@@ -872,7 +872,7 @@ private fun CaptchaStep2Puzzle(
                                 .border(
                                     1.dp,
                                     Brush.linearGradient(
-                                        listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
+                                        listOf(Color(0xFF2563EB), Color(0xFF1D4ED8))
                                     ),
                                     RoundedCornerShape(12.dp)
                                 )
@@ -930,7 +930,7 @@ private fun CaptchaStep2Puzzle(
                                 }
                         ) {
                             Canvas(modifier = Modifier.fillMaxSize()) {
-                                drawEmblemSlice(slice = pieceId, primaryColor = Color(0xFF38BDF8))
+                                drawEmblemSlice(slice = pieceId, primaryColor = Color(0xFF2563EB))
                             }
                         }
                     } else {

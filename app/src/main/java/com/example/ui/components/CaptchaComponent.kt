@@ -116,7 +116,7 @@ fun CaptchaComponent(
 
                 Text(
                     text = captchaText,
-                    color = Color(0xFF38BDF8),
+                    color = Color(0xFF2563EB),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,

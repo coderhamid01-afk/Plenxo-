@@ -53,7 +53,7 @@ import com.example.calling.model.CallType
 
 private val GreenAccept = Color(0xFF10B981)
 private val RedDecline = Color(0xFFEF4444)
-private val CyanAccent = Color(0xFF38BDF8)
+private val BlueAccent = Color(0xFF2563EB)
 private val PurpleAccent = Color(0xFFA855F7)
 
 @Composable
@@ -122,11 +122,11 @@ fun IncomingCallOverlay(
 
             // Call Type Badge ("Incoming Video Call" vs "Incoming Voice Call")
             Surface(
-                color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else CyanAccent.copy(alpha = 0.2f),
+                color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else BlueAccent.copy(alpha = 0.2f),
                 shape = RoundedCornerShape(24.dp),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    if (isVideo) PurpleAccent.copy(alpha = 0.6f) else CyanAccent.copy(alpha = 0.6f)
+                    if (isVideo) PurpleAccent.copy(alpha = 0.6f) else BlueAccent.copy(alpha = 0.6f)
                 )
             ) {
                 Row(
@@ -136,7 +136,7 @@ fun IncomingCallOverlay(
                     Icon(
                         imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
                         contentDescription = "Call Type",
-                        tint = if (isVideo) PurpleAccent else CyanAccent,
+                        tint = if (isVideo) PurpleAccent else BlueAccent,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -216,7 +216,7 @@ fun IncomingCallOverlay(
             // Caller Plenxo ID
             Text(
                 text = "@${session.peerPlenxoId.ifBlank { "PX-USER" }}",
-                color = CyanAccent,
+                color = BlueAccent,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )

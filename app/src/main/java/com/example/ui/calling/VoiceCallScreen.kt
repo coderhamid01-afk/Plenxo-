@@ -73,7 +73,7 @@ import com.example.calling.model.NetworkQuality
 private val SlateDarkBackground = Color(0xFF0B1120)
 private val SlateSurface = Color(0xFF1E293B)
 private val FrostedGlassBorder = Color(0x3394A3B8)
-private val CyanAccent = Color(0xFF38BDF8)
+private val BlueAccent = Color(0xFF2563EB)
 private val EmeraldSuccess = Color(0xFF10B981)
 private val RedEndCall = Color(0xFFEF4444)
 
@@ -168,13 +168,13 @@ fun VoiceCallScreen(
                         modifier = Modifier
                             .size(140.dp)
                             .scale(pulseScale2)
-                            .background(CyanAccent.copy(alpha = pulseAlpha2), CircleShape)
+                            .background(BlueAccent.copy(alpha = pulseAlpha2), CircleShape)
                     )
                     Box(
                         modifier = Modifier
                             .size(140.dp)
                             .scale(pulseScale1)
-                            .background(CyanAccent.copy(alpha = pulseAlpha1), CircleShape)
+                            .background(BlueAccent.copy(alpha = pulseAlpha1), CircleShape)
                     )
                 }
 
@@ -184,7 +184,7 @@ fun VoiceCallScreen(
                         .size(130.dp)
                         .clip(CircleShape)
                         .background(SlateSurface)
-                        .border(3.dp, CyanAccent.copy(alpha = 0.7f), CircleShape),
+                        .border(3.dp, BlueAccent.copy(alpha = 0.7f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     if (session.peerAvatar.isNotBlank() && (session.peerAvatar.startsWith("http") || session.peerAvatar.startsWith("content://"))) {
@@ -222,12 +222,12 @@ fun VoiceCallScreen(
 
             // Plenxo ID Pill
             Surface(
-                color = Color(0x3338BDF8),
+                color = Color(0x332563EB),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     text = "@${session.peerPlenxoId.ifBlank { "PX-USER" }}",
-                    color = CyanAccent,
+                    color = BlueAccent,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -327,7 +327,7 @@ private fun VoiceCallTopBadge(
         // Network Quality Badge ("HD Voice • Excellent")
         val (qualityText, qualityColor) = when (networkQuality) {
             NetworkQuality.EXCELLENT -> "HD Voice • Excellent" to EmeraldSuccess
-            NetworkQuality.GOOD -> "HD Voice • Good" to CyanAccent
+            NetworkQuality.GOOD -> "HD Voice • Good" to BlueAccent
             NetworkQuality.POOR -> "Voice • Poor Connection" to Color(0xFFF97316)
             NetworkQuality.DISCONNECTED -> "Reconnecting..." to Color(0xFFEF4444)
         }
@@ -392,7 +392,7 @@ private fun AudioWaveformVisualizer(isActive: Boolean) {
                     .background(
                         if (isActive) {
                             Brush.verticalGradient(
-                                colors = listOf(CyanAccent, EmeraldSuccess)
+                                colors = listOf(BlueAccent, EmeraldSuccess)
                             )
                         } else {
                             Brush.verticalGradient(
@@ -446,7 +446,7 @@ private fun VoiceCallControlDock(
                 icon = if (isSpeakerOn) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
                 label = if (isSpeakerOn) "Speaker" else "Earpiece",
                 isActive = isSpeakerOn,
-                activeColor = CyanAccent,
+                activeColor = BlueAccent,
                 onClick = onToggleSpeaker,
                 testTag = "voice_call_speaker_button"
             )
@@ -577,7 +577,7 @@ private fun AudioRouteSelectorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close", color = CyanAccent)
+                Text("Close", color = BlueAccent)
             }
         }
     )
@@ -596,12 +596,12 @@ private fun AudioRouteOptionItem(
             .padding(vertical = 4.dp)
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0x3338BDF8) else Color(0x22334155)
+            containerColor = if (isSelected) Color(0x332563EB) else Color(0x22334155)
         ),
         shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isSelected) CyanAccent else Color(0x2264748B)
+            if (isSelected) BlueAccent else Color(0x2264748B)
         )
     ) {
         Row(
@@ -613,7 +613,7 @@ private fun AudioRouteOptionItem(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (isSelected) CyanAccent else Color.LightGray,
+                tint = if (isSelected) BlueAccent else Color.LightGray,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))

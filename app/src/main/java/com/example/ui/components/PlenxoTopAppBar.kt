@@ -36,9 +36,9 @@ fun PlenxoTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
-    backgroundColor: Color = Color(0xFF131824),
-    contentColor: Color = Color(0xFFFFFFFF),
-    accentColor: Color = Color(0xFF58A6FF),
+    backgroundColor: Color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+    contentColor: Color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+    accentColor: Color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
     actions: @Composable RowScope.() -> Unit = {}
 ) {

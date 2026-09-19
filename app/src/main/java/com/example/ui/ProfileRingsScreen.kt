@@ -70,10 +70,10 @@ fun ProfileRingsScreen(
             ),
             RingOption(
                 id = "ring_neon",
-                name = "Neon Blue Glow",
-                brush = Brush.sweepGradient(listOf(Color(0xFF00E5FF), Color(0xFF007BFF), Color(0xFF00E5FF))),
-                colors = listOf(Color(0xFF00E5FF), Color(0xFF007BFF)),
-                description = "A futuristic electric neon cyan cyber glow."
+                name = "Electric Royal Blue",
+                brush = Brush.sweepGradient(listOf(Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF3B82F6), Color(0xFF2563EB))),
+                colors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8)),
+                description = "A sleek, professional royal blue accent ring."
             ),
             RingOption(
                 id = "ring_gold",

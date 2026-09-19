@@ -116,7 +116,7 @@ fun AuthScreen(
     onSignUpSuccess: () -> Unit,
     onNavigateToOtp: () -> Unit = onSignUpSuccess,
     onNavigateToOther: (() -> Unit)? = null,
-    primaryColor: Color = Color(0xFF059669)
+    primaryColor: Color = MaterialTheme.colorScheme.primary
 ) {
     var authMode by rememberSaveable { mutableStateOf(initialMode) }
     var showCaptchaDialog by rememberSaveable { mutableStateOf(false) }
@@ -479,7 +479,7 @@ fun AuthScreen(
                             Icon(
                                 imageVector = if (isCaptchaVerified) Icons.Default.CheckCircle else Icons.Default.Security,
                                 contentDescription = null,
-                                tint = if (isCaptchaVerified) primaryColor else Color(0xFF38BDF8),
+                                tint = if (isCaptchaVerified) primaryColor else primaryColor,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -511,7 +511,7 @@ fun AuthScreen(
                                 text = if (isCaptchaVerified) "Verified" else "Verify",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCaptchaVerified) primaryColor else Color(0xFF38BDF8)
+                                color = primaryColor
                             )
                         }
                     }
@@ -573,7 +573,7 @@ fun AuthScreen(
                                 text = "Terms & Services",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF38BDF8),
+                                color = primaryColor,
                                 modifier = Modifier.clickable {
                                     LegalWebUtils.openUrl(context, LegalWebUtils.TERMS_CONDITIONS_URL)
                                 }

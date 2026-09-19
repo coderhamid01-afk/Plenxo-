@@ -104,7 +104,7 @@ fun ChatBubble(
                         } else if (isOutgoing) {
                             Modifier.background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF0052D4), Color(0xFF0066FF))))
                         } else {
-                            Modifier.background(Color(0xFF12192A).copy(alpha = 0.85f)).border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), bubbleShape)
+                            Modifier.background(Color(0xFF12192A).copy(alpha = 0.85f)).border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), bubbleShape)
                         }
                     )
                     .clickable {
@@ -192,7 +192,7 @@ fun ChatBubble(
                                 .height(210.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF0F172A))
-                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                                 .clickable {
                                     if (videoSource.isNotBlank()) {
                                         if (onVideoClick != null) {
@@ -215,10 +215,10 @@ fun ChatBubble(
                             
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF00B0FF).copy(alpha = 0.35f),
+                                color = Color(0xFF2563EB).copy(alpha = 0.35f),
                                 modifier = Modifier
                                     .size(54.dp)
-                                    .border(1.5.dp, Color(0xFF00E5FF), CircleShape)
+                                    .border(1.5.dp, Color(0xFF2563EB), CircleShape)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -455,7 +455,7 @@ fun MessageStatusIcon(
 
     val iconColor = when {
         isFailed -> Color(0xFFEF4444)
-        isRead || isSentOrDelivered -> Color(0xFF00E5FF) // cyan checkmarks
+        isRead || isSentOrDelivered -> Color(0xFF3B82F6) // blue checkmarks
         else -> Color(0xFF8E8E93).copy(alpha = 0.5f)
     }
 

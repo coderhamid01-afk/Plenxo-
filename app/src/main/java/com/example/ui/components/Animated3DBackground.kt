@@ -39,9 +39,9 @@ import kotlin.math.sin
 @Composable
 fun Animated3DBackground(
     modifier: Modifier = Modifier,
-    accentColor: Color = Color(0xFF00F2FE),    // Electric Cyan
-    secondaryColor: Color = Color(0xFF8B5CF6), // Neon Violet / Purple
-    tertiaryColor: Color = Color(0xFF4FACFE),  // Vibrant Electric Blue
+    accentColor: Color = Color(0xFF2563EB),    // Professional Blue
+    secondaryColor: Color = Color(0xFF1D4ED8), // Deep Blue
+    tertiaryColor: Color = Color(0xFF3B82F6),  // Vibrant Royal Blue
     baseColor: Color = Color(0xFF030712)       // Deep Obsidian Midnight
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "LiquidGlassTransition")
@@ -268,9 +268,9 @@ fun Animated3DBackground(
                 path = crestPath2,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFF8B5CF6).copy(alpha = 0.50f),
-                        Color(0xFF4FACFE).copy(alpha = 0.65f),
-                        Color(0xFF00F2FE).copy(alpha = 0.75f)
+                        Color(0xFF1D4ED8).copy(alpha = 0.50f),
+                        Color(0xFF3B82F6).copy(alpha = 0.65f),
+                        Color(0xFF2563EB).copy(alpha = 0.75f)
                     )
                 ),
                 style = Stroke(
@@ -322,24 +322,24 @@ fun Animated3DBackground(
                 path = fillPath3,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF7C3AED).copy(alpha = sheenMod),
+                        Color(0xFF1E3A8A).copy(alpha = sheenMod),
                         Color(0xFF3B82F6).copy(alpha = sheenMod * 0.8f),
-                        Color(0xFF06B6D4).copy(alpha = sheenMod * 0.9f),
-                        Color(0xFF00F2FE).copy(alpha = sheenMod * 1.1f)
+                        Color(0xFF2563EB).copy(alpha = sheenMod * 0.9f),
+                        Color(0xFF60A5FA).copy(alpha = sheenMod * 1.1f)
                     ),
                     start = Offset(0f, w3StartY * 0.8f),
                     end = Offset(width, height * 0.70f)
                 )
             )
 
-            // Layer 3 Ultra-Bright Neon Rim Glow (Liquid glass refractive rim highlight)
+            // Layer 3 Ultra-Bright Rim Glow
             drawPath(
                 path = crestPath3,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFF8B5CF6).copy(alpha = 0.55f),
-                        Color(0xFF4FACFE).copy(alpha = 0.75f),
-                        Color(0xFF00F2FE).copy(alpha = 0.85f)
+                        Color(0xFF1D4ED8).copy(alpha = 0.55f),
+                        Color(0xFF3B82F6).copy(alpha = 0.75f),
+                        Color(0xFF2563EB).copy(alpha = 0.85f)
                     )
                 ),
                 style = Stroke(
@@ -352,8 +352,8 @@ fun Animated3DBackground(
                 path = crestPath3,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFFDDD6FE).copy(alpha = 0.90f),
-                        Color(0xFF38BDF8).copy(alpha = 0.95f),
+                        Color(0xFF93C5FD).copy(alpha = 0.90f),
+                        Color(0xFF3B82F6).copy(alpha = 0.95f),
                         Color.White.copy(alpha = 0.98f)
                     )
                 ),
@@ -400,14 +400,14 @@ fun Animated3DBackground(
                 )
             )
 
-            // Layer 4 Delicate Cyan-Violet Rim Highlight
+            // Layer 4 Delicate Rim Highlight
             drawPath(
                 path = crestPath4,
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFF8B5CF6).copy(alpha = 0.45f),
-                        Color(0xFF4FACFE).copy(alpha = 0.60f),
-                        Color(0xFF00F2FE).copy(alpha = 0.70f)
+                        Color(0xFF1D4ED8).copy(alpha = 0.45f),
+                        Color(0xFF3B82F6).copy(alpha = 0.60f),
+                        Color(0xFF2563EB).copy(alpha = 0.70f)
                     )
                 ),
                 style = Stroke(

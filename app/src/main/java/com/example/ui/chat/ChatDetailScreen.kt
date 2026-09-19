@@ -660,7 +660,7 @@ private fun ChatInputBar(
             .background(Color(0xFF0A101D).copy(alpha = 0.8f))
             .border(
                 width = 1.dp,
-                color = if (isFocused) Color(0xFF00E5FF) else Color(0xFF00E5FF).copy(alpha = 0.5f),
+                color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                 shape = RoundedCornerShape(28.dp)
             )
             .animateContentSize(animationSpec = tween(180))

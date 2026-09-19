@@ -64,7 +64,7 @@ fun AppSettingsScreen(
     val primaryText = GlassTheme.getPrimaryTextColor(isDark)
     val secondaryText = GlassTheme.getSecondaryTextColor(isDark)
     val dividerColor = GlassTheme.getDividerColor(isDark)
-    val accentColor = if (isDark) Color(0xFF00E5FF) else primaryColor
+    val accentColor = MaterialTheme.colorScheme.primary
 
     if (showThemeDialog) {
         AlertDialog(

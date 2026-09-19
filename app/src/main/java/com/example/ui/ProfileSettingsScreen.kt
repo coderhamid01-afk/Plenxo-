@@ -434,21 +434,21 @@ fun ProfileSettingsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             com.example.ui.components.ProfileRingBox(ringId = userRingId, borderWidth = 6.dp) {
-                                val neonGlowBrush = Brush.sweepGradient(
+                                val blueGradientBrush = Brush.sweepGradient(
                                     listOf(
-                                        Color(0xFF00E5FF),
-                                        Color(0xFF8A2BE2),
-                                        Color(0xFFFF007F),
-                                        Color(0xFF00E5FF)
+                                        Color(0xFF2563EB),
+                                        Color(0xFF3B82F6),
+                                        Color(0xFF1D4ED8),
+                                        Color(0xFF2563EB)
                                     )
                                 )
                                 Box(
                                     modifier = Modifier
                                         .size(136.dp)
-                                        .shadow(elevation = 8.dp, shape = CircleShape, spotColor = Color(0xFF00E5FF))
+                                        .shadow(elevation = 6.dp, shape = CircleShape, spotColor = Color(0xFF2563EB))
                                         .clip(CircleShape)
                                         .background(cardBg)
-                                        .border(3.dp, neonGlowBrush, CircleShape)
+                                        .border(2.5.dp, blueGradientBrush, CircleShape)
                                         .bounceClick {
                                             photoPickerLauncher.launch(
                                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -535,7 +535,7 @@ fun ProfileSettingsScreen(
                                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 CircularProgressIndicator(
-                                                    color = Color(0xFF00E5FF),
+                                                    color = Color(0xFF2563EB),
                                                     modifier = Modifier.size(32.dp),
                                                     strokeWidth = 3.dp
                                                 )

@@ -2,6 +2,7 @@ package com.example.ui
 
 import android.widget.Toast
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,16 +61,14 @@ fun UserProfileScreen(
     val usersCache by viewModel.usersCache.collectAsState()
     val userPresences by viewModel.userPresences.collectAsState()
 
-    // Neon OLED Color Palette
-    val oledBlack = Color(0xFF000000)
-    val neonCyan = Color(0xFF00E5FF)
-    val neonBlue = Color(0xFF0082FB)
-    val glassBg = Color(0xFF08101E)
-    val glassCardBg = Color(0xFF091220)
-    val glassBorder = Color(0xFF00E5FF)
-    val textWhite = Color(0xFFFFFFFF)
-    val textMuted = Color(0xFF94A3B8)
-    val dividerColor = Color(0xFF1F293D)
+    // Unified Design Palette using Material Theme
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textMuted = MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+    val dividerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
 
     var userProfile by remember(userId) { mutableStateOf<User?>(usersCache[userId]) }
     var bioText by remember(userId) { mutableStateOf("") }
@@ -106,16 +105,16 @@ fun UserProfileScreen(
         var tempBio by remember { mutableStateOf(bioText) }
         AlertDialog(
             onDismissRequest = { showEditBioDialog = false },
-            title = { Text("Edit Bio & About", color = textWhite, fontWeight = FontWeight.Bold) },
+            title = { Text("Edit Bio & About", color = textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = tempBio,
                     onValueChange = { tempBio = it },
-                    label = { Text("Bio", color = neonCyan) },
+                    label = { Text("Bio", color = primaryColor) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = textWhite,
-                        unfocusedTextColor = textWhite,
-                        focusedBorderColor = neonCyan,
+                        focusedTextColor = textPrimary,
+                        unfocusedTextColor = textPrimary,
+                        focusedBorderColor = primaryColor,
                         unfocusedBorderColor = textMuted
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -129,9 +128,9 @@ fun UserProfileScreen(
                         showEditBioDialog = false
                         Toast.makeText(context, "Bio updated successfully", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = neonCyan)
+                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
                 ) {
-                    Text("Save", color = oledBlack, fontWeight = FontWeight.Bold)
+                    Text("Save", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -139,7 +138,7 @@ fun UserProfileScreen(
                     Text("Cancel", color = textMuted)
                 }
             },
-            containerColor = glassCardBg
+            containerColor = cardBg
         )
     }
 
@@ -294,7 +293,7 @@ fun UserProfileScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(oledBlack)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // 1. TOP AMBIENT ELECTRIC CYAN ARCHES IN BACKGROUND CORNERS
         TopAmbientGlowArcs(
@@ -315,13 +314,13 @@ fun UserProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Top-Left Back Button in dark glass circle
+                    // Top-Left Back Button in circle
                     Box(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0C1424).copy(alpha = 0.85f))
-                            .border(1.2.dp, neonCyan.copy(alpha = 0.6f), CircleShape)
+                            .background(cardBg)
+                            .border(1.dp, borderColor, CircleShape)
                             .clickable { onBack() }
                             .testTag("user_profile_back_button"),
                         contentAlignment = Alignment.Center
@@ -329,18 +328,18 @@ fun UserProfileScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = neonCyan,
+                            tint = primaryColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
-                    // Top-Right Three-Dot Options Menu in dark glass circle
+                    // Top-Right Three-Dot Options Menu in circle
                     Box(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0C1424).copy(alpha = 0.85f))
-                            .border(1.2.dp, neonCyan.copy(alpha = 0.6f), CircleShape)
+                            .background(cardBg)
+                            .border(1.dp, borderColor, CircleShape)
                             .clickable { showOptionsMenu = true }
                             .testTag("user_profile_options_button"),
                         contentAlignment = Alignment.Center
@@ -348,7 +347,7 @@ fun UserProfileScreen(
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = "Options",
-                            tint = neonCyan,
+                            tint = primaryColor,
                             modifier = Modifier.size(20.dp)
                         )
 
@@ -356,16 +355,16 @@ fun UserProfileScreen(
                             expanded = showOptionsMenu,
                             onDismissRequest = { showOptionsMenu = false },
                             modifier = Modifier
-                                .background(glassCardBg)
-                                .border(1.dp, neonCyan, RoundedCornerShape(12.dp))
+                                .background(cardBg)
+                                .border(1.dp, borderColor, RoundedCornerShape(12.dp))
                         ) {
                             DropdownMenuItem(
-                                text = { Text(if (isMuted) "Unmute Notifications" else "Mute Notifications", color = textWhite) },
+                                text = { Text(if (isMuted) "Unmute Notifications" else "Mute Notifications", color = textPrimary) },
                                 leadingIcon = {
                                     Icon(
                                         if (isMuted) Icons.Default.NotificationsOff else Icons.Default.Notifications,
                                         contentDescription = null,
-                                        tint = neonCyan
+                                        tint = primaryColor
                                     )
                                 },
                                 onClick = {
@@ -375,16 +374,16 @@ fun UserProfileScreen(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Share Profile QR", color = textWhite) },
-                                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = neonCyan) },
+                                text = { Text("Share Profile QR", color = textPrimary) },
+                                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null, tint = primaryColor) },
                                 onClick = {
                                     showOptionsMenu = false
                                     showQRBottomSheet = true
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Copy Plenxo ID", color = textWhite) },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = neonCyan) },
+                                text = { Text("Copy Plenxo ID", color = textPrimary) },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = primaryColor) },
                                 onClick = {
                                     showOptionsMenu = false
                                     val idToCopy = userProfile?.plenxoId?.ifBlank { "PX-644369" } ?: "PX-644369"
@@ -432,33 +431,14 @@ fun UserProfileScreen(
 
                 // 2. HERO AVATAR & IDENTITY
                 Box(
-                    modifier = Modifier.size(136.dp),
+                    modifier = Modifier.size(128.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Outer Glowing Neon Cyan Hexagonal/Circular Frame Aura
                     Box(
                         modifier = Modifier
-                            .size(132.dp)
-                            .shadow(
-                                elevation = 24.dp,
-                                shape = CircleShape,
-                                ambientColor = neonCyan,
-                                spotColor = neonBlue
-                            )
+                            .size(124.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.sweepGradient(
-                                    colors = listOf(
-                                        neonCyan,
-                                        neonBlue,
-                                        Color(0xFF00F0FF),
-                                        neonCyan
-                                    )
-                                )
-                            )
-                            .padding(3.dp)
-                            .clip(CircleShape)
-                            .background(oledBlack)
+                            .border(2.dp, primaryColor, CircleShape)
                             .padding(4.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -470,16 +450,15 @@ fun UserProfileScreen(
                         )
                     }
 
-                    // Vibrant Green Online Status Badge
+                    // Online Status Badge
                     Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(20.dp)
                             .align(Alignment.BottomEnd)
-                            .offset(x = (-4).dp, y = (-4).dp)
-                            .shadow(8.dp, CircleShape, ambientColor = Color(0xFF00FF66))
+                            .offset(x = (-2).dp, y = (-2).dp)
                             .clip(CircleShape)
-                            .background(if (isOnline) Color(0xFF00FF66) else Color(0xFF8E8E93))
-                            .border(2.5.dp, oledBlack, CircleShape)
+                            .background(if (isOnline) Color(0xFF10B981) else Color(0xFF94A3B8))
+                            .border(2.dp, surfaceColor, CircleShape)
                     )
                 }
 
@@ -488,9 +467,9 @@ fun UserProfileScreen(
                 // Username Typography
                 Text(
                     text = userProfile?.displayName?.ifBlank { "EagleHost" } ?: "EagleHost",
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = textWhite,
+                    color = textPrimary,
                     textAlign = TextAlign.Center
                 )
 
@@ -501,50 +480,47 @@ fun UserProfileScreen(
                 val displayPxId = if (rawPxId.startsWith("PX-")) rawPxId else "PX-${rawPxId.take(6)}"
 
                 Surface(
-                    color = Color(0xFF081324),
-                    shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, neonCyan.copy(alpha = 0.8f)),
-                    modifier = Modifier.shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = neonCyan)
+                    color = cardBg,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, borderColor)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(18.dp)
                                 .clip(CircleShape)
-                                .background(neonCyan.copy(alpha = 0.2f)),
+                                .background(primaryColor.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Shield,
                                 contentDescription = "Plenxo Shield",
-                                tint = neonCyan,
+                                tint = primaryColor,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = displayPxId,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = neonCyan,
+                            color = primaryColor,
                             letterSpacing = 0.5.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // 3. UNIFIED NEON ACTION DOCK
+                // 3. UNIFIED ACTION DOCK
                 Surface(
-                    color = glassBg,
-                    shape = RoundedCornerShape(22.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, neonCyan),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(16.dp, RoundedCornerShape(22.dp), ambientColor = neonCyan)
+                    color = cardBg,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, borderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
@@ -616,13 +592,13 @@ fun UserProfileScreen(
                     }
                 }
 
-                // Incoming Friend Request Notification Prompt (If applicable)
+                // Connection Request Prompt
                 if (connectionStatus == "PENDING_RECEIVED") {
                     Spacer(modifier = Modifier.height(14.dp))
                     Surface(
-                        color = glassCardBg,
+                        color = cardBg,
                         shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, neonCyan),
+                        border = BorderStroke(1.dp, borderColor),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -633,7 +609,7 @@ fun UserProfileScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Connection Request", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textWhite)
+                                Text("Connection Request", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                 Text("This user sent you a connection request.", fontSize = 12.sp, color = textMuted)
                             }
                             Button(
@@ -657,14 +633,14 @@ fun UserProfileScreen(
                                     }
                                 },
                                 enabled = !isActionLoading,
-                                colors = ButtonDefaults.buttonColors(containerColor = neonCyan),
-                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                                shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.testTag("user_profile_accept_request_btn")
                             ) {
                                 if (isActionLoading) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = oledBlack, strokeWidth = 2.dp)
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                                 } else {
-                                    Text("Accept", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = oledBlack)
+                                    Text("Accept", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                                 }
                             }
                         }
@@ -673,24 +649,22 @@ fun UserProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. COMPACT NEON PILL BADGES ROW
+                // 4. COMPACT PILL BADGES ROW
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left Pill: Age
                     val ageVal = parsedDobInfo.age ?: 22
-                    NeonPillBadge(
+                    ProfilePillBadge(
                         icon = Icons.Default.Person,
                         label = "Age: $ageVal",
                         modifier = Modifier.weight(1f)
                     )
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // Right Pill: Gender
                     val formattedGender = genderText.trim().ifBlank { "Male" }.capitalizeLocale()
-                    NeonPillBadge(
+                    ProfilePillBadge(
                         icon = Icons.Default.Wc,
                         label = "Gender: $formattedGender",
                         modifier = Modifier.weight(1f)
@@ -701,103 +675,84 @@ fun UserProfileScreen(
 
                 // 5. BIO & ABOUT CONTAINER
                 Surface(
-                    color = glassCardBg,
-                    shape = RoundedCornerShape(18.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, neonCyan.copy(alpha = 0.9f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = neonCyan)
+                    color = cardBg,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, borderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Prominent Bright Cyan Vertical Accent Bar on Far-Left Edge
-                        Box(
-                            modifier = Modifier
-                                .width(5.dp)
-                                .matchParentSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(neonCyan, neonBlue, neonCyan)
-                                    )
-                                )
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 18.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        // Title Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Title Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF0D2138))
-                                            .border(1.dp, neonCyan, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = neonCyan,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        "Bio & About",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = textWhite
-                                    )
-                                }
-
-                                // Edit Pencil Icon Button
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF0D2138))
-                                        .border(1.dp, neonCyan.copy(alpha = 0.6f), CircleShape)
-                                        .clickable {
-                                            if (isSelf) {
-                                                showEditBioDialog = true
-                                            } else {
-                                                Toast.makeText(context, "Only profile owner can edit bio", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
+                                        .background(primaryColor.copy(alpha = 0.12f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        Icons.Default.Edit,
-                                        contentDescription = "Edit Bio",
-                                        tint = neonCyan,
-                                        modifier = Modifier.size(16.dp)
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = primaryColor,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    "Bio & About",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textPrimary
+                                )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Crisp Multi-Line Bio Text
-                            Text(
-                                text = bioText,
-                                fontSize = 14.sp,
-                                color = textWhite,
-                                lineHeight = 21.sp
-                            )
+                            // Edit Pencil Icon Button
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryColor.copy(alpha = 0.12f))
+                                    .clickable {
+                                        if (isSelf) {
+                                            showEditBioDialog = true
+                                        } else {
+                                            Toast.makeText(context, "Only profile owner can edit bio", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Edit Bio",
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = bioText,
+                            fontSize = 14.sp,
+                            color = textPrimary,
+                            lineHeight = 20.sp
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 6. PERSONAL DETAILS HEADER & GLASS CARD
+                // 6. PERSONAL DETAILS HEADER & CARD
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -808,99 +763,76 @@ fun UserProfileScreen(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0D2138))
-                            .border(1.dp, neonCyan, CircleShape),
+                            .background(primaryColor.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Badge,
                             contentDescription = null,
-                            tint = neonCyan,
+                            tint = primaryColor,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         "Personal Details",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = textWhite
+                        color = textPrimary
                     )
                 }
 
                 Surface(
-                    color = glassCardBg,
-                    shape = RoundedCornerShape(18.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.2.dp, neonCyan.copy(alpha = 0.9f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = neonCyan)
+                    color = cardBg,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, borderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // 1. Full Name
                         PersonalDetailRow(
                             icon = Icons.Default.Person,
                             label = "Full Name",
-                            value = userProfile?.displayName?.ifBlank { "EagleHost" } ?: "EagleHost",
-                            textWhite = textWhite,
-                            textMuted = textMuted,
-                            neonCyan = neonCyan
+                            value = userProfile?.displayName?.ifBlank { "EagleHost" } ?: "EagleHost"
                         )
 
                         HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                        // 2. Plenxo ID
                         PersonalDetailRow(
                             icon = Icons.Default.Badge,
                             label = "Plenxo ID",
-                            value = displayPxId,
-                            textWhite = textWhite,
-                            textMuted = textMuted,
-                            neonCyan = neonCyan
+                            value = displayPxId
                         )
 
                         HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                        // 3. Date of Birth
                         PersonalDetailRow(
                             icon = Icons.Default.CalendarToday,
                             label = "Date of Birth",
-                            value = parsedDobInfo.formattedDob.ifBlank { "12 Jan 2003" },
-                            textWhite = textWhite,
-                            textMuted = textMuted,
-                            neonCyan = neonCyan
+                            value = parsedDobInfo.formattedDob.ifBlank { "12 Jan 2003" }
                         )
 
                         HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                        // 4. Country
                         PersonalDetailRow(
                             icon = Icons.Default.LocationOn,
                             label = "Country",
-                            value = countryText.ifBlank { "Pakistan" },
-                            textWhite = textWhite,
-                            textMuted = textMuted,
-                            neonCyan = neonCyan
+                            value = countryText.ifBlank { "Pakistan" }
                         )
 
                         HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                        // 5. Joined Date
                         PersonalDetailRow(
                             icon = Icons.Default.AccessTime,
                             label = "Joined",
-                            value = joinedDateText.ifBlank { "15 Sep 2025" },
-                            textWhite = textWhite,
-                            textMuted = textMuted,
-                            neonCyan = neonCyan
+                            value = joinedDateText.ifBlank { "15 Sep 2025" }
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -912,13 +844,11 @@ fun UserProfileScreen(
 
 @Composable
 private fun TopAmbientGlowArcs(modifier: Modifier = Modifier) {
-    val cyanGlow = Color(0xFF00E5FF)
-    val blueGlow = Color(0xFF0082FB)
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     Canvas(modifier = modifier) {
         val width = size.width
 
-        // Left Arc
         val leftPath = Path().apply {
             moveTo(0f, 30.dp.toPx())
             cubicTo(
@@ -930,12 +860,11 @@ private fun TopAmbientGlowArcs(modifier: Modifier = Modifier) {
         drawPath(
             path = leftPath,
             brush = Brush.horizontalGradient(
-                colors = listOf(cyanGlow.copy(alpha = 0.9f), blueGlow.copy(alpha = 0.6f), Color.Transparent)
+                colors = listOf(primaryColor.copy(alpha = 0.2f), primaryColor.copy(alpha = 0.05f), Color.Transparent)
             ),
-            style = Stroke(width = 3.dp.toPx())
+            style = Stroke(width = 2.dp.toPx())
         )
 
-        // Right Arc
         val rightPath = Path().apply {
             moveTo(width, 30.dp.toPx())
             cubicTo(
@@ -947,9 +876,9 @@ private fun TopAmbientGlowArcs(modifier: Modifier = Modifier) {
         drawPath(
             path = rightPath,
             brush = Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, blueGlow.copy(alpha = 0.6f), cyanGlow.copy(alpha = 0.9f))
+                colors = listOf(Color.Transparent, primaryColor.copy(alpha = 0.05f), primaryColor.copy(alpha = 0.2f))
             ),
-            style = Stroke(width = 3.dp.toPx())
+            style = Stroke(width = 2.dp.toPx())
         )
     }
 }
@@ -962,16 +891,18 @@ private fun NeonDockActionButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val neonCyan = Color(0xFF00E5FF)
-    val textWhite = Color(0xFFFFFFFF)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Surface(
         onClick = onClick,
-        color = Color(0xFF0D1728),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, neonCyan.copy(alpha = 0.5f)),
+        color = cardBg,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, borderColor),
         modifier = modifier
-            .height(72.dp)
+            .height(68.dp)
             .testTag(testTag)
     ) {
         Column(
@@ -984,15 +915,15 @@ private fun NeonDockActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = neonCyan,
-                modifier = Modifier.size(24.dp)
+                tint = primaryColor,
+                modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = textWhite,
+                fontWeight = FontWeight.SemiBold,
+                color = textPrimary,
                 maxLines = 1
             )
         }
@@ -1000,39 +931,40 @@ private fun NeonDockActionButton(
 }
 
 @Composable
-private fun NeonPillBadge(
+private fun ProfilePillBadge(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier
 ) {
-    val neonCyan = Color(0xFF00E5FF)
-    val textWhite = Color(0xFFFFFFFF)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Surface(
-        color = Color(0xFF091424),
-        shape = RoundedCornerShape(22.dp),
-        border = androidx.compose.foundation.BorderStroke(1.2.dp, neonCyan.copy(alpha = 0.8f)),
+        color = cardBg,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, borderColor),
         modifier = modifier
-            .shadow(8.dp, RoundedCornerShape(22.dp), ambientColor = neonCyan)
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = neonCyan,
-                modifier = Modifier.size(18.dp)
+                tint = primaryColor,
+                modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = label,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = textWhite,
+                fontWeight = FontWeight.SemiBold,
+                color = textPrimary,
                 maxLines = 1
             )
         }
@@ -1043,11 +975,12 @@ private fun NeonPillBadge(
 private fun PersonalDetailRow(
     icon: ImageVector,
     label: String,
-    value: String,
-    textWhite: Color,
-    textMuted: Color,
-    neonCyan: Color
+    value: String
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textMuted = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1058,17 +991,16 @@ private fun PersonalDetailRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF0D2138))
-                    .border(1.dp, neonCyan.copy(alpha = 0.6f), CircleShape),
+                    .background(primaryColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = neonCyan,
-                    modifier = Modifier.size(16.dp)
+                    tint = primaryColor,
+                    modifier = Modifier.size(15.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -1084,7 +1016,7 @@ private fun PersonalDetailRow(
             text = value,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = textWhite
+            color = textPrimary
         )
     }
 }

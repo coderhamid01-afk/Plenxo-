@@ -91,7 +91,7 @@ fun SearchUserItem(
                 Text(
                     text = plenxoId,
                     fontSize = 12.sp,
-                    color = Color(0xFF00E5FF)
+                    color = Color(0xFF3B82F6)
                 )
             }
         }

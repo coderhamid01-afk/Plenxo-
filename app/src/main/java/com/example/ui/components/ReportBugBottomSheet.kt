@@ -108,7 +108,7 @@ fun ReportBugBottomSheet(
                 text = "Registered Email Address",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF00E5FF),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
             OutlinedTextField(
@@ -148,7 +148,7 @@ fun ReportBugBottomSheet(
                 text = "6-Digit App Phone Number / ID",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF00E5FF),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
             OutlinedTextField(
@@ -196,7 +196,7 @@ fun ReportBugBottomSheet(
                 text = "Describe the Bug",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF00E5FF),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
             OutlinedTextField(

@@ -65,7 +65,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val CyanAccent = Color(0xFF38BDF8)
+private val BlueAccent = Color(0xFF2563EB)
 private val PurpleAccent = Color(0xFFA855F7)
 private val EmeraldSuccess = Color(0xFF10B981)
 private val CoralRed = Color(0xFFFF7B72)
@@ -329,7 +329,7 @@ fun CallLogItemRow(
 
                 // Voice / Video Badge
                 Surface(
-                    color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else CyanAccent.copy(alpha = 0.2f),
+                    color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else BlueAccent.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
@@ -339,13 +339,13 @@ fun CallLogItemRow(
                         Icon(
                             imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
                             contentDescription = if (isVideo) "Video" else "Voice",
-                            tint = if (isVideo) PurpleAccent else CyanAccent,
+                            tint = if (isVideo) PurpleAccent else BlueAccent,
                             modifier = Modifier.size(11.dp)
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = if (isVideo) "Video" else "Voice",
-                            color = if (isVideo) PurpleAccent else CyanAccent,
+                            color = if (isVideo) PurpleAccent else BlueAccent,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -359,7 +359,7 @@ fun CallLogItemRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val (directionIcon, directionColor) = when (log.direction) {
                     "INCOMING" -> Icons.Default.CallReceived to EmeraldSuccess
-                    "OUTGOING" -> Icons.Default.CallMade to CyanAccent
+                    "OUTGOING" -> Icons.Default.CallMade to BlueAccent
                     else -> Icons.Default.CallMissed to CoralRed
                 }
 
@@ -403,7 +403,7 @@ fun CallLogItemRow(
             Icon(
                 imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
                 contentDescription = "Redial",
-                tint = if (isVideo) PurpleAccent else CyanAccent,
+                tint = if (isVideo) PurpleAccent else BlueAccent,
                 modifier = Modifier.size(18.dp)
             )
         }

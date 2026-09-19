@@ -65,10 +65,10 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
             var passwordVisible by remember { mutableStateOf(false) }
 
             val gradientBrush = Brush.horizontalGradient(
-                listOf(Color(0xFF00F2FE), Color(0xFF4FACFE), Color(0xFF6366F1))
+                listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF1D4ED8))
             )
             val activeBorderBrush = Brush.horizontalGradient(
-                listOf(Color(0xFF00F2FE), Color(0xFF8B5CF6))
+                listOf(Color(0xFF2563EB), Color(0xFF3B82F6))
             )
 
             Scaffold(
@@ -87,7 +87,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back",
-                                    tint = Color(0xFF00F2FE)
+                                    tint = Color(0xFF2563EB)
                                 )
                             }
                         },
@@ -151,7 +151,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 .then(
                                     if (isSelected) {
                                         Modifier
-                                            .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = Color(0xFF00F2FE).copy(alpha = 0.35f))
+                                            .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = Color(0xFF2563EB).copy(alpha = 0.35f))
                                             .border(1.5.dp, activeBorderBrush, RoundedCornerShape(16.dp))
                                     } else {
                                         Modifier.border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
@@ -172,7 +172,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                         .size(44.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
-                                            if (isSelected) Color(0xFF00F2FE).copy(alpha = 0.18f)
+                                            if (isSelected) Color(0xFF2563EB).copy(alpha = 0.18f)
                                             else Color(0xFF1E293B)
                                         ),
                                     contentAlignment = Alignment.Center
@@ -180,7 +180,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = option,
-                                        tint = if (isSelected) Color(0xFF00F2FE) else Color(0xFF94A3B8),
+                                        tint = if (isSelected) Color(0xFF2563EB) else Color(0xFF94A3B8),
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -195,7 +195,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                     Text(
                                         text = subtitle,
                                         fontSize = 12.sp,
-                                        color = if (isSelected) Color(0xFF00F2FE).copy(alpha = 0.8f) else Color(0xFF64748B)
+                                        color = if (isSelected) Color(0xFF2563EB).copy(alpha = 0.8f) else Color(0xFF64748B)
                                     )
                                 }
                                 // Interactive Selection Indicator (Replacing basic RadioButton)
@@ -208,7 +208,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                             brush = if (isSelected) activeBorderBrush else Brush.linearGradient(listOf(Color(0xFF475569), Color(0xFF334155))),
                                             shape = androidx.compose.foundation.shape.CircleShape
                                         )
-                                        .background(if (isSelected) Color(0xFF00F2FE).copy(alpha = 0.2f) else Color.Transparent),
+                                        .background(if (isSelected) Color(0xFF2563EB).copy(alpha = 0.2f) else Color.Transparent),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (isSelected) {
@@ -216,7 +216,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                             modifier = Modifier
                                                 .size(10.dp)
                                                 .clip(androidx.compose.foundation.shape.CircleShape)
-                                                .background(Color(0xFF00F2FE))
+                                                .background(Color(0xFF2563EB))
                                         )
                                     }
                                 }
@@ -291,7 +291,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Color(0xFF0F172A).copy(alpha = 0.7f))
-                                .border(1.dp, Color(0xFF00F2FE).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                                 .padding(16.dp)
                         ) {
                             OutlinedTextField(
@@ -304,7 +304,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFF00F2FE),
+                                    focusedBorderColor = Color(0xFF2563EB),
                                     unfocusedBorderColor = Color(0xFF334155)
                                 ),
                                 trailingIcon = {
@@ -357,7 +357,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Color(0xFF0F172A).copy(alpha = 0.7f))
-                                .border(1.dp, Color(0xFF00F2FE).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                                 .padding(16.dp)
                         ) {
                             OutlinedTextField(
@@ -369,7 +369,7 @@ class AppLockSetupActivity : com.example.ui.BaseActivity() {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFF00F2FE),
+                                    focusedBorderColor = Color(0xFF2563EB),
                                     unfocusedBorderColor = Color(0xFF334155)
                                 ),
                                 trailingIcon = {

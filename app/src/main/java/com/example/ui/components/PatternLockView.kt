@@ -88,7 +88,7 @@ fun PatternLockView(
                     val p2 = dotCenters[selectedDots[i + 1]]
                     if (p1 != null && p2 != null) {
                         val lineBrush = Brush.linearGradient(
-                            colors = listOf(Color(0xFF00F2FE), Color(0xFF8B5CF6)),
+                            colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6)),
                             start = p1,
                             end = p2
                         )
@@ -119,7 +119,7 @@ fun PatternLockView(
                 val lastDot = dotCenters[selectedDots.last()]
                 if (lastDot != null) {
                     val dragBrush = Brush.linearGradient(
-                        colors = listOf(Color(0xFF00F2FE), Color(0xFF8B5CF6).copy(alpha = 0.6f)),
+                        colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6).copy(alpha = 0.6f)),
                         start = lastDot,
                         end = touchPos
                     )
@@ -138,16 +138,16 @@ fun PatternLockView(
             dotCenters.forEach { (index, center) ->
                 val isSelected = selectedDots.contains(index)
                 if (isSelected) {
-                    // Outer ambient neon glow
+                    // Outer ambient blue glow
                     drawCircle(
-                        color = Color(0xFF00F2FE).copy(alpha = 0.22f),
+                        color = Color(0xFF2563EB).copy(alpha = 0.22f),
                         radius = 42f,
                         center = center
                     )
-                    // Outer neon border ring
+                    // Outer blue border ring
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF00F2FE), Color(0xFF8B5CF6)),
+                            colors = listOf(Color(0xFF2563EB), Color(0xFF1D4ED8)),
                             center = center,
                             radius = 28f
                         ),
@@ -155,10 +155,10 @@ fun PatternLockView(
                         center = center,
                         style = Stroke(width = 4f)
                     )
-                    // Inner glowing white-cyan core
+                    // Inner glowing white-blue core
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(Color.White, Color(0xFF00F2FE)),
+                            colors = listOf(Color.White, Color(0xFF2563EB)),
                             center = center,
                             radius = 14f
                         ),

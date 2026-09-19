@@ -27,7 +27,7 @@ data class CaptchaColorOption(
 
 val CAPTCHA_PALETTE: List<CaptchaColorOption> = listOf(
     CaptchaColorOption("Yellow", Color(0xFFFBBF24)),
-    CaptchaColorOption("Blue", Color(0xFF38BDF8)),
+    CaptchaColorOption("Blue", Color(0xFF2563EB)),
     CaptchaColorOption("Red", Color(0xFFF43F5E)),
     CaptchaColorOption("Green", Color(0xFF10B981)),
     CaptchaColorOption("Purple", Color(0xFFA855F7)),

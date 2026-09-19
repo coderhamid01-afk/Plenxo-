@@ -15,7 +15,7 @@ fun LoginScreen(
     onLoginSuccess: (UserProfile) -> Unit,
     onSignUpSuccess: () -> Unit = onNavigateToSignUp,
     onNavigateToOtp: () -> Unit = onSignUpSuccess,
-    primaryColor: Color = Color(0xFF059669)
+    primaryColor: Color = androidx.compose.material3.MaterialTheme.colorScheme.primary
 ) {
     AuthScreen(
         authViewModel = authViewModel,

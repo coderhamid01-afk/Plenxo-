@@ -340,9 +340,9 @@ fun ChatsListScreen(
     }
     val chatListState = rememberLazyListState()
 
-    val darkSurfaceBg = Color(0xFF000000)
-    val electricCyan = Color(0xFF00E5FF)
-    val electricBlue = Color(0xFF0082FB)
+    val darkSurfaceBg = MaterialTheme.colorScheme.background
+    val electricCyan = MaterialTheme.colorScheme.primary
+    val electricBlue = MaterialTheme.colorScheme.primary
 
     Scaffold(
         topBar = {
@@ -383,13 +383,13 @@ fun ChatsListScreen(
                                 modifier = Modifier
                                     .size(46.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF0A0E17))
-                                    .border(2.dp, Brush.linearGradient(listOf(electricCyan, electricBlue)), CircleShape),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .border(2.dp, electricCyan, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val initialChar = currentUserProfile?.displayName?.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "H"
                                 val fallbackGradient = Brush.linearGradient(
-                                    listOf(Color(0xFF0082FB), Color(0xFF00E5FF))
+                                    listOf(Color(0xFF1D4ED8), Color(0xFF2563EB))
                                 )
 
                                 if (!displayAvatarUrl.isNullOrEmpty() && (displayAvatarUrl.startsWith("http") || displayAvatarUrl.startsWith("content://") || displayAvatarUrl.startsWith("file://"))) {
@@ -485,8 +485,8 @@ fun ChatsListScreen(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF0A111F))
-                                    .border(1.5.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
                                     .clickable { viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS) },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -513,8 +513,8 @@ fun ChatsListScreen(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF0A111F))
-                                    .border(1.5.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
                                     .clickable { viewModel.navigateToScreen(PlenxoScreen.SETTINGS_NORMAL) },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -530,14 +530,14 @@ fun ChatsListScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Glowing Search Bar matching Image 1
+                    // Search Bar
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = {
                             Text(
                                 "Search added users & messages...",
-                                color = Color(0xFF64748B),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 14.sp
                             )
                         },
@@ -555,7 +555,7 @@ fun ChatsListScreen(
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = "Clear Search",
-                                        tint = Color(0xFF64748B),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -564,23 +564,23 @@ fun ChatsListScreen(
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 14.sp,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = 18.sp,
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                         ),
-                        shape = RoundedCornerShape(22.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF0A0E17),
-                            unfocusedContainerColor = Color(0xFF0A0E17),
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                             focusedBorderColor = electricCyan,
-                            unfocusedBorderColor = electricCyan.copy(alpha = 0.8f),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 50.dp, max = 54.dp)
-                            .shadow(8.dp, RoundedCornerShape(22.dp), ambientColor = electricCyan, spotColor = electricCyan)
+                            .heightIn(min = 48.dp, max = 52.dp)
+                            .shadow(2.dp, RoundedCornerShape(16.dp))
                             .testTag("chats_search_input")
                     )
 
@@ -623,16 +623,14 @@ fun ChatsListScreen(
             }
         },
         floatingActionButton = {
-            // Neon Cyan Squircle Floating Action Button matching Image 1
+            // Floating Action Button
             Box(
                 modifier = Modifier
                     .padding(end = 8.dp, bottom = 12.dp)
                     .size(56.dp)
-                    .shadow(12.dp, RoundedCornerShape(18.dp), ambientColor = electricCyan, spotColor = electricCyan)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(
-                        Brush.linearGradient(listOf(electricCyan, electricBlue))
-                    )
+                    .shadow(4.dp, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(electricCyan)
                     .clickable { viewModel.navigateToScreen(PlenxoScreen.DISCOVERY) }
                     .testTag("fab_add_friend"),
                 contentAlignment = Alignment.Center
@@ -999,8 +997,8 @@ private fun FilterPill(
     activeColor: Color,
     onClick: () -> Unit
 ) {
-    val electricCyan = Color(0xFF00E5FF)
-    val electricBlue = Color(0xFF0082FB)
+    val electricCyan = MaterialTheme.colorScheme.primary
+    val electricBlue = MaterialTheme.colorScheme.primary
     val containerBg = if (isSelected) {
         Brush.linearGradient(listOf(electricBlue, electricCyan))
     } else {
@@ -1069,24 +1067,24 @@ fun ModernChatCardItem(
     onDeleteChat: () -> Unit,
     onClick: () -> Unit
 ) {
-    val electricCyan = Color(0xFF00E5FF)
-    val electricBlue = Color(0xFF0082FB)
+    val electricCyan = MaterialTheme.colorScheme.primary
+    val electricBlue = MaterialTheme.colorScheme.primary
     val formatter = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
     val timeString = remember(chat.lastMessageTimestamp) {
         chat.lastMessageTimestamp?.let { formatter.format(Date(it)) } ?: ""
     }
     var showMenu by remember { mutableStateOf(false) }
 
-    val cardBg = Color(0xFF0A0E17)
-    val cardBorder = Brush.linearGradient(listOf(electricCyan, electricBlue))
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val cardBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = electricCyan, spotColor = electricCyan)
-            .clip(RoundedCornerShape(18.dp))
+            .shadow(2.dp, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(cardBg)
-            .border(1.5.dp, cardBorder, RoundedCornerShape(18.dp))
+            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
     ) {
         Row(
             modifier = Modifier
@@ -1251,8 +1249,7 @@ fun ModernChatCardItem(
                             modifier = Modifier
                                 .size(22.dp)
                                 .clip(CircleShape)
-                                .background(electricCyan)
-                                .shadow(4.dp, CircleShape, ambientColor = electricCyan, spotColor = electricCyan),
+                                .background(electricCyan),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(

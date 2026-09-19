@@ -77,23 +77,13 @@ fun ProfileRingBox(
     val normalizedId = ringId?.lowercase()?.trim() ?: "none"
     
     val brush = when (normalizedId) {
-        "ring_neon" -> Brush.linearGradient(colors = listOf(Color(0xFF00F0FF), Color(0xFF0072FF)))
-        "ring_gold" -> Brush.linearGradient(colors = listOf(Color(0xFFFFD700), Color(0xFFFFA500), Color(0xFFFF8C00)))
-        "ring_ruby" -> Brush.linearGradient(colors = listOf(Color(0xFFFF007F), Color(0xFFE0115F), Color(0xFF8B0000)))
-        "ring_emerald" -> Brush.linearGradient(colors = listOf(Color(0xFF38EF7D), Color(0xFF11998E)))
-        "ring_dark" -> Brush.linearGradient(colors = listOf(Color(0xFF4B5563), Color(0xFF1F2937), Color(0xFF111827)))
-        "ring_tier_6" -> Brush.sweepGradient(colors = listOf(Color(0xFF00FFFF), Color(0xFFFF00FF)))
-        "ring_tier_7" -> Brush.linearGradient(colors = listOf(Color(0xFFFFD700), Color(0xFFFFFFFF)))
-        "ring_tier_8" -> Brush.linearGradient(colors = listOf(Color(0xFF8A2BE2), Color(0xFF000000)))
-        "ring_tier_9" -> Brush.linearGradient(colors = listOf(Color(0xFFFF0000), Color(0xFFFF4500), Color(0xFFFFD700)))
-        "ring_tier_10" -> Brush.linearGradient(colors = listOf(Color(0xFFE0FFFF), Color(0xFFFFFFFF)))
-        "ring_tier_11" -> Brush.linearGradient(colors = listOf(Color(0xFF8A2BE2), Color(0xFFFF007F), Color(0xFFFFD700)))
-        "ring_tier_12" -> Brush.sweepGradient(colors = listOf(Color(0xFFFF0000), Color(0xFFFF7F00), Color(0xFFFFFF00), Color(0xFF00FF00), Color(0xFF0000FF), Color(0xFF8B00FF), Color(0xFFFF0000)))
-        "ring_tier_13" -> Brush.linearGradient(colors = listOf(Color(0xFF2E0854), Color(0xFF180B26), Color(0xFF000000)))
-        "ring_tier_14" -> Brush.linearGradient(colors = listOf(Color(0xFFFF0000), Color(0xFFFF4500), Color(0xFFFFD700)))
-        "ring_tier_15" -> Brush.linearGradient(colors = listOf(Color(0xFF00FFFF), Color(0xFFE0FFFF), Color(0xFFFFFFFF)))
+        "ring_neon", "ring_blue" -> Brush.sweepGradient(colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB)))
+        "ring_gold" -> Brush.linearGradient(colors = listOf(Color(0xFFFFD700), Color(0xFFB8860B), Color(0xFFFFD700)))
+        "ring_ruby" -> Brush.linearGradient(colors = listOf(Color(0xFFE11D48), Color(0xFF9F1239), Color(0xFFE11D48)))
+        "ring_emerald" -> Brush.linearGradient(colors = listOf(Color(0xFF059669), Color(0xFF047857), Color(0xFF059669)))
+        "ring_dark" -> Brush.linearGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF334155), Color(0xFF1E293B)))
         "none", "" -> null
-        else -> Brush.linearGradient(colors = listOf(Color(0xFF8B949E), Color(0xFF8B949E)))
+        else -> Brush.sweepGradient(colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF2563EB)))
     }
 
     if (brush != null) {

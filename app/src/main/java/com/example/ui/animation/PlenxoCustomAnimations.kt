@@ -133,8 +133,8 @@ fun FluidSpringBubbleWrapper(
 // =========================================================================
 fun Modifier.neonGlowPulseAvatar(
     enabled: Boolean = true,
-    glowColor: Color = Color(0xFF00E5FF),
-    secondaryColor: Color = Color(0xFF7C4DFF)
+    glowColor: Color = Color(0xFF2563EB),
+    secondaryColor: Color = Color(0xFF1D4ED8)
 ): Modifier = composed {
     if (!enabled) return@composed this
 
@@ -192,7 +192,7 @@ fun Modifier.neonGlowPulseAvatar(
 fun NeonGlowPulseAvatarWrapper(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
-    glowColor: Color = Color(0xFF00E5FF),
+    glowColor: Color = Color(0xFF2563EB),
     content: @Composable () -> Unit
 ) {
     Box(modifier = modifier.neonGlowPulseAvatar(enabled, glowColor)) {
@@ -428,10 +428,10 @@ fun FloatingParticleBackground(
     val particles = remember { mutableStateListOf<Particle>() }
     val particleColors = remember {
         listOf(
-            Color(0xFF58A6FF),
-            Color(0xFF7928CA),
-            Color(0xFF00E5FF),
-            Color(0xFFFF0080)
+            Color(0xFF2563EB),
+            Color(0xFF1D4ED8),
+            Color(0xFF3B82F6),
+            Color(0xFF60A5FA)
         )
     }
 

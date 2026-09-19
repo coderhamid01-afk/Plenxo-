@@ -12,7 +12,7 @@ fun SignUpScreen(
     authViewModel: AuthViewModel,
     onNavigateToLogin: () -> Unit,
     onSuccess: () -> Unit,
-    primaryColor: Color = Color(0xFF059669)
+    primaryColor: Color = androidx.compose.material3.MaterialTheme.colorScheme.primary
 ) {
     AuthScreen(
         authViewModel = authViewModel,

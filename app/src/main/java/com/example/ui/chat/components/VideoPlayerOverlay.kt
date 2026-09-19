@@ -321,15 +321,15 @@ fun VideoPlayerOverlay(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF00E5FF).copy(alpha = 0.25f))
-                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape),
+                        .background(Color(0xFF2563EB).copy(alpha = 0.25f))
+                        .border(1.5.dp, Color(0xFF2563EB), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.FastRewind,
                             contentDescription = "Rewind 10s",
-                            tint = Color(0xFF00E5FF),
+                            tint = Color(0xFF2563EB),
                             modifier = Modifier.size(32.dp)
                         )
                         Text(
@@ -355,15 +355,15 @@ fun VideoPlayerOverlay(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF00E5FF).copy(alpha = 0.25f))
-                        .border(1.5.dp, Color(0xFF00E5FF), CircleShape),
+                        .background(Color(0xFF2563EB).copy(alpha = 0.25f))
+                        .border(1.5.dp, Color(0xFF2563EB), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Default.FastForward,
                             contentDescription = "Forward 10s",
-                            tint = Color(0xFF00E5FF),
+                            tint = Color(0xFF2563EB),
                             modifier = Modifier.size(32.dp)
                         )
                         Text(
@@ -388,7 +388,7 @@ fun VideoPlayerOverlay(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0A101D).copy(alpha = 0.85f)),
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    modifier = Modifier.border(1.dp, Color(0xFF2563EB).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 ) {
                     Column(
                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp),
@@ -397,7 +397,7 @@ fun VideoPlayerOverlay(
                         Icon(
                             imageVector = Icons.Default.Brightness6,
                             contentDescription = "Brightness",
-                            tint = Color(0xFF00E5FF),
+                            tint = Color(0xFF2563EB),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -413,7 +413,7 @@ fun VideoPlayerOverlay(
                                     .fillMaxWidth()
                                     .fillMaxHeight(brightnessLevel)
                                     .align(Alignment.BottomCenter)
-                                    .background(Color(0xFF00E5FF), CircleShape)
+                                    .background(Color(0xFF2563EB), CircleShape)
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
@@ -439,7 +439,7 @@ fun VideoPlayerOverlay(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0A101D).copy(alpha = 0.85f)),
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    modifier = Modifier.border(1.dp, Color(0xFF2563EB).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 ) {
                     Column(
                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp),
@@ -448,7 +448,7 @@ fun VideoPlayerOverlay(
                         Icon(
                             imageVector = if (volumeLevel == 0f || isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                             contentDescription = "Volume",
-                            tint = Color(0xFF00E5FF),
+                            tint = Color(0xFF2563EB),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -464,7 +464,7 @@ fun VideoPlayerOverlay(
                                     .fillMaxWidth()
                                     .fillMaxHeight(volumeLevel)
                                     .align(Alignment.BottomCenter)
-                                    .background(Color(0xFF00E5FF), CircleShape)
+                                    .background(Color(0xFF2563EB), CircleShape)
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
@@ -516,7 +516,7 @@ fun VideoPlayerOverlay(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .background(Color(0xFF12192A).copy(alpha = 0.85f), CircleShape)
-                                    .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f), CircleShape)
+                                    .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.5f), CircleShape)
                                     .testTag("video_overlay_back_btn")
                             ) {
                                 Icon(
@@ -556,15 +556,15 @@ fun VideoPlayerOverlay(
                                     }
                                 },
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.7f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2563EB)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.7f)),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AspectRatio,
                                     contentDescription = "Aspect Ratio",
                                     modifier = Modifier.size(16.dp),
-                                    tint = Color(0xFF00E5FF)
+                                    tint = Color(0xFF2563EB)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
@@ -579,8 +579,8 @@ fun VideoPlayerOverlay(
                                 OutlinedButton(
                                     onClick = { showSpeedMenu = true },
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00E5FF)),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.7f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2563EB)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.7f)),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Text(
@@ -595,7 +595,7 @@ fun VideoPlayerOverlay(
                                     onDismissRequest = { showSpeedMenu = false },
                                     modifier = Modifier
                                         .background(Color(0xFF0A101D))
-                                        .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                        .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                                 ) {
                                     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
                                     speeds.forEach { speed ->
@@ -603,7 +603,7 @@ fun VideoPlayerOverlay(
                                             text = {
                                                 Text(
                                                     text = "${speed}x",
-                                                    color = if (speed == currentSpeed) Color(0xFF00E5FF) else Color.White,
+                                                    color = if (speed == currentSpeed) Color(0xFF2563EB) else Color.White,
                                                     fontWeight = if (speed == currentSpeed) FontWeight.Bold else FontWeight.Normal
                                                 )
                                             },
@@ -635,7 +635,7 @@ fun VideoPlayerOverlay(
                             modifier = Modifier
                                 .size(52.dp)
                                 .background(Color(0xFF12192A).copy(alpha = 0.85f), CircleShape)
-                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.6f), CircleShape)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -647,7 +647,7 @@ fun VideoPlayerOverlay(
                             }
                         }
 
-                        // Glowing Cyan Center Play/Pause Button
+                        // Glowing Blue Center Play/Pause Button
                         IconButton(
                             onClick = {
                                 if (exoPlayer.isPlaying) {
@@ -661,8 +661,8 @@ fun VideoPlayerOverlay(
                             },
                             modifier = Modifier
                                 .size(72.dp)
-                                .background(Color(0xFF00B0FF).copy(alpha = 0.35f), CircleShape)
-                                .border(2.dp, Color(0xFF00E5FF), CircleShape)
+                                .background(Color(0xFF2563EB).copy(alpha = 0.35f), CircleShape)
+                                .border(2.dp, Color(0xFF2563EB), CircleShape)
                                 .testTag("toggle_overlay_play_btn")
                         ) {
                             Icon(
@@ -683,7 +683,7 @@ fun VideoPlayerOverlay(
                             modifier = Modifier
                                 .size(52.dp)
                                 .background(Color(0xFF12192A).copy(alpha = 0.85f), CircleShape)
-                                .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.6f), CircleShape)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -718,8 +718,8 @@ fun VideoPlayerOverlay(
                                 }
                             },
                             colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF00E5FF),
-                                activeTrackColor = Color(0xFF00E5FF),
+                                thumbColor = Color(0xFF2563EB),
+                                activeTrackColor = Color(0xFF2563EB),
                                 inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                             ),
                             modifier = Modifier
@@ -744,7 +744,7 @@ fun VideoPlayerOverlay(
 
                             Text(
                                 text = "$posStr / $durStr",
-                                color = Color(0xFF00E5FF),
+                                color = Color(0xFF2563EB),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp

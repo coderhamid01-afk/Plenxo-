@@ -42,23 +42,14 @@ fun ProfileImageWithRing(
     val hasRing = ringId.isNotEmpty() && ringId != "none" && ringId != "NONE"
 
     val ringBrush = when (ringId.lowercase()) {
-        "ring_neon" -> Brush.sweepGradient(listOf(Color(0xFF00E5FF), Color(0xFF007BFF), Color(0xFF00E5FF)))
-        "ring_gold" -> Brush.linearGradient(listOf(Color(0xFFFFE875), Color(0xFFC59B27), Color(0xFFFFE875)))
-        "ring_ruby" -> Brush.linearGradient(listOf(Color(0xFFFF0844), Color(0xFFFFA07A), Color(0xFFFF0844)))
-        "ring_emerald" -> Brush.linearGradient(listOf(Color(0xFF11998E), Color(0xFF38EF7D), Color(0xFF11998E)))
-        "ring_dark" -> Brush.linearGradient(listOf(Color(0xFF0F2027), Color(0xFF2C5364), Color(0xFF0F2027)))
-        "ring_tier_6" -> Brush.sweepGradient(listOf(Color(0xFF00FFFF), Color(0xFFFF00FF)))
-        "ring_tier_7" -> Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFFFFFFF)))
-        "ring_tier_8" -> Brush.linearGradient(listOf(Color(0xFF8A2BE2), Color(0xFF000000)))
-        "ring_tier_9" -> Brush.linearGradient(listOf(Color(0xFFFF0000), Color(0xFFFF4500), Color(0xFFFFD700)))
-        "ring_tier_10" -> Brush.linearGradient(listOf(Color(0xFFE0FFFF), Color(0xFFFFFFFF)))
-        "ring_tier_11" -> Brush.linearGradient(listOf(Color(0xFF8A2BE2), Color(0xFFFF007F), Color(0xFFFFD700)))
-        "ring_tier_12" -> Brush.sweepGradient(listOf(Color(0xFFFF0000), Color(0xFFFF7F00), Color(0xFFFFFF00), Color(0xFF00FF00), Color(0xFF0000FF), Color(0xFF8B00FF), Color(0xFFFF0000)))
-        "ring_tier_13" -> Brush.linearGradient(listOf(Color(0xFF2E0854), Color(0xFF180B26), Color(0xFF000000)))
-        "ring_tier_14" -> Brush.linearGradient(listOf(Color(0xFFFF0000), Color(0xFFFF4500), Color(0xFFFFD700)))
-        "ring_tier_15" -> Brush.linearGradient(listOf(Color(0xFF00FFFF), Color(0xFFE0FFFF), Color(0xFFFFFFFF)))
+        "ring_neon", "ring_blue" -> Brush.sweepGradient(listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB)))
+        "ring_gold" -> Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFB8860B), Color(0xFFFFD700)))
+        "ring_ruby" -> Brush.linearGradient(listOf(Color(0xFFE11D48), Color(0xFF9F1239), Color(0xFFE11D48)))
+        "ring_emerald" -> Brush.linearGradient(listOf(Color(0xFF059669), Color(0xFF047857), Color(0xFF059669)))
+        "ring_dark" -> Brush.linearGradient(listOf(Color(0xFF1E293B), Color(0xFF334155), Color(0xFF1E293B)))
+        "ring_platinum" -> Brush.linearGradient(listOf(Color(0xFFCBD5E1), Color(0xFF94A3B8), Color(0xFFCBD5E1)))
         "none", "" -> null
-        else -> Brush.linearGradient(listOf(Color(0xFF8B949E), Color(0xFF8B949E)))
+        else -> Brush.sweepGradient(listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF2563EB)))
     }
 
     val clickableModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier

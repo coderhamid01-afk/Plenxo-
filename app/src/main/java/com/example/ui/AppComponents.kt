@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,10 +18,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.PlenxoColors
 import com.example.ui.theme.PlenxoSpacing
-import com.example.ui.theme.PlenxoTypography
 
 val DefaultSpringSpec = spring<Float>(
     dampingRatio = 0.8f,
@@ -40,20 +40,27 @@ fun PlenxoButton(
         modifier = modifier.fillMaxWidth().height(50.dp),
         enabled = enabled && !isLoading,
         colors = ButtonDefaults.buttonColors(
-            containerColor = PlenxoColors.Primary,
-            contentColor = PlenxoColors.Surface,
-            disabledContainerColor = PlenxoColors.Primary.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
         if (isLoading) {
-            androidx.compose.material3.CircularProgressIndicator(
+            CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = PlenxoColors.Surface,
+                color = MaterialTheme.colorScheme.onPrimary,
                 strokeWidth = 2.5.dp
             )
         } else {
-            Text(text, style = PlenxoTypography.Body.copy(color = PlenxoColors.Surface, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            )
         }
     }
 }
@@ -75,17 +82,13 @@ fun PlenxoTextField(
     keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
     singleLine: Boolean = true
 ) {
-    val textColor = if (isDark) androidx.compose.ui.graphics.Color.White else PlenxoColors.TextPrimary
-    val labelColor = if (isDark) androidx.compose.ui.graphics.Color.LightGray else PlenxoColors.TextSecondary
-    val borderColor = if (isDark) androidx.compose.ui.graphics.Color(0x4DFFFFFF) else PlenxoColors.Divider
-
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, style = PlenxoTypography.Label.copy(color = labelColor)) },
+        label = { Text(label) },
         modifier = modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
@@ -104,17 +107,17 @@ fun PlenxoTextField(
         keyboardActions = keyboardActions,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = textColor,
-            unfocusedTextColor = textColor,
-            focusedBorderColor = PlenxoColors.Primary,
-            unfocusedBorderColor = borderColor,
-            focusedLabelColor = PlenxoColors.Primary,
-            unfocusedLabelColor = labelColor,
-            focusedContainerColor = if (isDark) androidx.compose.ui.graphics.Color(0x1A000000) else androidx.compose.ui.graphics.Color.Transparent,
-            unfocusedContainerColor = if (isDark) androidx.compose.ui.graphics.Color(0x1A000000) else androidx.compose.ui.graphics.Color.Transparent,
-            errorBorderColor = PlenxoColors.Error
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+            errorBorderColor = MaterialTheme.colorScheme.error
         ),
-        textStyle = PlenxoTypography.Body.copy(color = textColor)
+        textStyle = MaterialTheme.typography.bodyLarge
     )
 }
 
@@ -125,9 +128,10 @@ fun PlenxoCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = PlenxoColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(PlenxoSpacing.Medium),
@@ -143,7 +147,11 @@ fun SettingsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     trailingContent: @Composable (() -> Unit)? = { 
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = PlenxoColors.TextSecondary) 
+        Icon(
+            Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        ) 
     }
 ) {
     Row(
@@ -156,13 +164,16 @@ fun SettingsRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = PlenxoColors.TextSecondary,
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(PlenxoSpacing.Medium))
         Text(
             text = title,
-            style = PlenxoTypography.Body,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            ),
             modifier = Modifier.weight(1f)
         )
         if (trailingContent != null) {
@@ -170,3 +181,4 @@ fun SettingsRow(
         }
     }
 }
+

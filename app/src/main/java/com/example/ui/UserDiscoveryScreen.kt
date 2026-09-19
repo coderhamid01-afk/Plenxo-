@@ -46,10 +46,16 @@ fun UserDiscoveryScreen(
     onAddFriend: (String) -> Unit,
     onStartChat: (String) -> Unit = {}
 ) {
+    val bg = MaterialTheme.colorScheme.background
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textMuted = MaterialTheme.colorScheme.onSurfaceVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0D1117)) // Deep Slate
+            .background(bg)
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
@@ -60,7 +66,7 @@ fun UserDiscoveryScreen(
         ) {
             Text(
                 text = "Search users by unique Plenxo ID only",
-                color = Color(0xFF8B949E),
+                color = textMuted,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -75,7 +81,7 @@ fun UserDiscoveryScreen(
                     prefix = {
                         Text(
                             text = "PX-",
-                            color = Color(0xFF58A6FF),
+                            color = primaryColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -83,7 +89,7 @@ fun UserDiscoveryScreen(
                     placeholder = {
                         Text(
                             text = "Enter numbers",
-                            color = Color(0xFF8B949E),
+                            color = textMuted,
                             fontSize = 15.sp
                         )
                     },
@@ -91,7 +97,7 @@ fun UserDiscoveryScreen(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = "User Icon",
-                            tint = Color(0xFF8B949E)
+                            tint = textMuted
                         )
                     },
                     trailingIcon = {
@@ -100,21 +106,21 @@ fun UserDiscoveryScreen(
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Clear",
-                                    tint = Color(0xFF8B949E)
+                                    tint = textMuted
                                 )
                             }
                         }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF010409),
-                        unfocusedContainerColor = Color(0xFF010409),
-                        focusedBorderColor = Color(0xFF58A6FF),
-                        unfocusedBorderColor = Color(0xFF30363D),
-                        focusedTextColor = Color(0xFFF0F6FC),
-                        unfocusedTextColor = Color(0xFFF0F6FC)
+                        focusedContainerColor = cardBg,
+                        unfocusedContainerColor = cardBg,
+                        focusedBorderColor = primaryColor,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedTextColor = textPrimary,
+                        unfocusedTextColor = textPrimary
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -123,11 +129,11 @@ fun UserDiscoveryScreen(
 
                 Button(
                     onClick = onSearchClick,
-                    modifier = Modifier.height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF58A6FF))
+                    modifier = Modifier.height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
                 ) {
-                    Text("Search", color = Color(0xFF0D1117), fontWeight = FontWeight.Bold)
+                    Text("Search", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -142,7 +148,7 @@ fun UserDiscoveryScreen(
             ) {
                 Text(
                     text = "No user found.",
-                    color = Color(0xFF8B949E),
+                    color = textMuted,
                     fontSize = 16.sp
                 )
             }
@@ -155,7 +161,7 @@ fun UserDiscoveryScreen(
                 if (users.isNotEmpty()) {
                     Text(
                         text = "Search Results",
-                        color = Color(0xFF8B949E),
+                        color = textMuted,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 10.dp)
@@ -176,9 +182,9 @@ fun UserDiscoveryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("user_discovery_row_${user.uid}"),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+                            colors = CardDefaults.cardColors(containerColor = cardBg),
                             shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -193,7 +199,7 @@ fun UserDiscoveryScreen(
                                         modifier = Modifier
                                             .size(72.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF0D1117)),
+                                            .background(primaryColor.copy(alpha = 0.12f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         val avatarUrl = user.effectiveAvatarUrl.ifEmpty { user.profilePicUrl }
@@ -212,7 +218,7 @@ fun UserDiscoveryScreen(
                                         } else {
                                             Text(
                                                 text = user.displayName.take(1).uppercase().ifEmpty { "P" },
-                                                color = Color.White,
+                                                color = primaryColor,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 24.sp
                                             )
@@ -228,12 +234,12 @@ fun UserDiscoveryScreen(
                                         text = user.displayName.ifBlank { "User" },
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFF0F6FC)
+                                        color = textPrimary
                                     )
                                     Text(
                                         text = "@${user.plenxoId}",
                                         fontSize = 14.sp,
-                                        color = Color(0xFF58A6FF),
+                                        color = primaryColor,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -244,10 +250,10 @@ fun UserDiscoveryScreen(
                                         .fillMaxWidth()
                                         .height(48.dp)
                                         .testTag("message_user_button_${user.uid}"),
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF58A6FF),
-                                        contentColor = Color(0xFF0D1117)
+                                        containerColor = primaryColor,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
                                     )
                                 ) {
                                     Text(

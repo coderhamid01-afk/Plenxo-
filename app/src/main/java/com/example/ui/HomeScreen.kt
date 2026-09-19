@@ -64,10 +64,10 @@ fun HomeScreen(
     val neonGlowBrush = remember {
         Brush.sweepGradient(
             listOf(
-                Color(0xFF00E5FF),
-                Color(0xFF8A2BE2),
-                Color(0xFFFF007F),
-                Color(0xFF00E5FF)
+                Color(0xFF2563EB),
+                Color(0xFF3B82F6),
+                Color(0xFF1D4ED8),
+                Color(0xFF2563EB)
             )
         )
     }
@@ -75,9 +75,9 @@ fun HomeScreen(
     val avatarFallbackGradient = remember {
         Brush.linearGradient(
             listOf(
-                Color(0xFF6366F1),
-                Color(0xFF8B5CF6),
-                Color(0xFF06B6D4)
+                Color(0xFF1E3A8A),
+                Color(0xFF2563EB),
+                Color(0xFF3B82F6)
             )
         )
     }

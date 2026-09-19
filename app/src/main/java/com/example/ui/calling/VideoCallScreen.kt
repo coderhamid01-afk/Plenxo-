@@ -78,7 +78,7 @@ import org.webrtc.RendererCommon
 import org.webrtc.VideoTrack
 import kotlin.math.roundToInt
 
-private val CyanAccent = Color(0xFF38BDF8)
+private val BlueAccent = Color(0xFF2563EB)
 private val EmeraldSuccess = Color(0xFF10B981)
 private val RedEndCall = Color(0xFFEF4444)
 private val FrostedBorder = Color(0x3394A3B8)
@@ -221,7 +221,7 @@ private fun RemoteVideoFeedContainer(session: CallSession, remoteVideoTrack: Vid
                             Brush.linearGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    CyanAccent.copy(alpha = 0.04f * gradientShift),
+                                    BlueAccent.copy(alpha = 0.04f * gradientShift),
                                     Color.Transparent
                                 )
                             )
@@ -239,7 +239,7 @@ private fun RemoteVideoFeedContainer(session: CallSession, remoteVideoTrack: Vid
                         modifier = Modifier
                             .size(110.dp)
                             .clip(CircleShape)
-                            .border(2.dp, CyanAccent.copy(alpha = 0.5f), CircleShape),
+                            .border(2.dp, BlueAccent.copy(alpha = 0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (session.peerAvatar.isNotBlank() && (session.peerAvatar.startsWith("http") || session.peerAvatar.startsWith("content://"))) {
@@ -322,7 +322,7 @@ private fun LocalPipCameraCard(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .border(2.dp, CyanAccent.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
+            .border(2.dp, BlueAccent.copy(alpha = 0.8f), RoundedCornerShape(16.dp)),
         color = Color(0xFF1E293B),
         shadowElevation = 10.dp
     ) {
@@ -406,7 +406,7 @@ private fun LocalPipCameraCard(
                 )
                 Text(
                     text = if (isFrontCamera) "Front" else "Rear",
-                    color = CyanAccent,
+                    color = BlueAccent,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -439,7 +439,7 @@ private fun VideoCallTopHeaderBar(
                     .size(38.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF1E293B))
-                    .border(1.dp, CyanAccent, CircleShape),
+                    .border(1.dp, BlueAccent, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (session.peerAvatar.isNotBlank() && (session.peerAvatar.startsWith("http") || session.peerAvatar.startsWith("content://"))) {
@@ -473,7 +473,7 @@ private fun VideoCallTopHeaderBar(
                 )
                 Text(
                     text = "@${session.peerPlenxoId.ifBlank { "PX-USER" }}",
-                    color = CyanAccent,
+                    color = BlueAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -580,7 +580,7 @@ private fun VideoCallControlDock(
                 icon = Icons.Default.Cameraswitch,
                 label = if (isFrontCamera) "Front" else "Rear",
                 isActive = !isFrontCamera,
-                activeColor = CyanAccent,
+                activeColor = BlueAccent,
                 onClick = onSwitchCamera,
                 testTag = "video_call_switch_camera_button"
             )
@@ -590,7 +590,7 @@ private fun VideoCallControlDock(
                 icon = if (isSpeakerOn) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
                 label = if (isSpeakerOn) "Speaker" else "Earpiece",
                 isActive = isSpeakerOn,
-                activeColor = CyanAccent,
+                activeColor = BlueAccent,
                 onClick = onToggleSpeaker,
                 testTag = "video_call_speaker_button"
             )

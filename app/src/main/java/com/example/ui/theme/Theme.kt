@@ -27,45 +27,45 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ElectricCyan,
-    onPrimary = PitchBlack,
-    primaryContainer = DeepBlue,
-    onPrimaryContainer = Color.White,
-    secondary = DeepBlue,
+    primary = PlenxoBlueDarkPrimary,
+    onPrimary = Color.White,
+    primaryContainer = PlenxoBlueDarkContainer,
+    onPrimaryContainer = Color(0xFFDBEAFE),
+    secondary = PlenxoBlueSecondary,
     onSecondary = Color.White,
-    secondaryContainer = SolidDarkGlassSurface,
-    onSecondaryContainer = ElectricCyan,
-    tertiary = ElectricCyan,
-    onTertiary = PitchBlack,
-    background = PitchBlack,
-    onBackground = Color(0xFFF8FAFC),
-    surface = SolidDarkGlassSurface,
-    onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = DarkGlassSurface,
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = TranslucentCyanBorder,
+    secondaryContainer = Color(0xFF0C4A6E),
+    onSecondaryContainer = Color(0xFFE0F2FE),
+    tertiary = Color(0xFF60A5FA),
+    onTertiary = Color(0xFF0F172A),
+    background = PlenxoNavyBackground,
+    onBackground = PlenxoTextPrimaryDark,
+    surface = PlenxoNavySurface,
+    onSurface = PlenxoTextPrimaryDark,
+    surfaceVariant = PlenxoNavySurfaceVariant,
+    onSurfaceVariant = PlenxoTextSecondaryDark,
+    outline = PlenxoBorderDark,
     error = PlenxoError,
     onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PlenxoElectricViolet,
+    primary = PlenxoBluePrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFF3E8FF),
-    onPrimaryContainer = Color(0xFF3B0764),
-    secondary = Color(0xFF0097A7),
+    primaryContainer = PlenxoBlueLightContainer,
+    onPrimaryContainer = Color(0xFF1E40AF),
+    secondary = PlenxoBlueSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE0F7FA),
-    onSecondaryContainer = Color(0xFF006064),
-    tertiary = Color(0xFF7C3AED),
+    secondaryContainer = Color(0xFFF0F9FF),
+    onSecondaryContainer = Color(0xFF0369A1),
+    tertiary = Color(0xFF3B82F6),
     onTertiary = Color.White,
-    background = Color(0xFFF8F9FA),
-    onBackground = Color(0xFF0F172A),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF64748B),
-    outline = Color(0xFFCBD5E1),
+    background = PlenxoLightBackground,
+    onBackground = PlenxoTextPrimaryLight,
+    surface = PlenxoLightSurface,
+    onSurface = PlenxoTextPrimaryLight,
+    surfaceVariant = PlenxoLightSurfaceVariant,
+    onSurfaceVariant = PlenxoTextSecondaryLight,
+    outline = PlenxoBorderLight,
     error = PlenxoError,
     onError = Color.White
 )
@@ -145,7 +145,7 @@ fun PlenxoTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = androidx.compose.material3.Typography()
+            typography = com.example.ui.theme.Typography
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 content()
@@ -178,7 +178,7 @@ fun PlenxoTheme(
 
                     // Dynamic top-to-bottom glowing dividing ribbon at wipeY
                     val ribbonHeight = 6.dp.toPx()
-                    val glowColor = if (isDark) Color(0xFF00E5FF) else Color(0xFF7C3AED)
+                    val glowColor = if (isDark) PlenxoBlueDarkPrimary else PlenxoBluePrimary
 
                     drawRect(
                         brush = Brush.verticalGradient(

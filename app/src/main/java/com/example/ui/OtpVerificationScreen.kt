@@ -45,7 +45,7 @@ import com.example.viewmodel.AuthViewModel
 fun OtpVerificationScreen(
     authViewModel: AuthViewModel,
     onSuccess: () -> Unit,
-    primaryColor: Color = Color(0xFF059669)
+    primaryColor: Color = MaterialTheme.colorScheme.primary
 ) {
     val otpInput by authViewModel.otpInput.collectAsState()
     val secondsRemaining by authViewModel.secondsRemaining.collectAsState()
@@ -62,7 +62,7 @@ fun OtpVerificationScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0B0F17),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -70,11 +70,11 @@ fun OtpVerificationScreen(
                         text = "Email Verification",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFFF1F5F9)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F172A).copy(alpha = 0.8f)
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
@@ -83,15 +83,7 @@ fun OtpVerificationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(0xFF0F172A),
-                            Color(0xFF0B0F17),
-                            Color(0xFF080C14)
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // Subtle ambient aura
             Box(
@@ -120,9 +112,9 @@ fun OtpVerificationScreen(
                         .padding(top = 12.dp)
                         .size(72.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                        .background(MaterialTheme.colorScheme.surface)
                         .border(1.dp, primaryColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                        .shadow(8.dp, RoundedCornerShape(20.dp)),
+                        .shadow(4.dp, RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -141,15 +133,15 @@ fun OtpVerificationScreen(
                     Text(
                         text = "Enter Security Code",
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFFF8FAFC)
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     val emailText = if (signUpEmail.isNotBlank()) signUpEmail else "your registered email address"
                     Text(
                         text = "We have sent a 6-digit secure code to $emailText. Please enter it below to confirm your account.",
                         fontSize = 13.sp,
                         lineHeight = 20.sp,
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
@@ -160,7 +152,7 @@ fun OtpVerificationScreen(
                     otpError?.let {
                         Card(
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)
+                                containerColor = MaterialTheme.colorScheme.errorContainer
                             ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -192,9 +184,9 @@ fun OtpVerificationScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
-                        .border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(20.dp)),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E293B).copy(alpha = 0.6f)
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 ) {
                     Column(
@@ -209,7 +201,7 @@ fun OtpVerificationScreen(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.5.sp,
-                            color = Color(0xFF94A3B8)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -227,7 +219,6 @@ fun OtpVerificationScreen(
 
                         LaunchedEffect(Unit) {
                             focusRequester.requestFocus()
-                            // Auto-paste if clipboard has exactly 6 digits
                             val clip = clipboardManager.getText()?.text?.trim()?.filter { it.isDigit() }
                             if (clip != null && clip.length == 6 && otpInput.isEmpty()) {
                                 authViewModel.otpInput.value = clip
@@ -235,14 +226,12 @@ fun OtpVerificationScreen(
                             }
                         }
 
-                        // Single 6-Box Segmented PIN Component (No duplicate text box)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { focusRequester.requestFocus() },
                             contentAlignment = Alignment.Center
                         ) {
-                            // Invisible BasicTextField capturing keyboard input and paste events
                             BasicTextField(
                                 value = otpInput,
                                 onValueChange = { newValue ->
@@ -263,7 +252,6 @@ fun OtpVerificationScreen(
                                     .alpha(0.01f)
                             )
 
-                            // Synchronized 6-box UI layout
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -279,13 +267,13 @@ fun OtpVerificationScreen(
                                             .weight(1f)
                                             .height(56.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
                                             .border(
                                                 width = if (isCurrent) 2.dp else 1.dp,
                                                 color = when {
-                                                    isCurrent -> Color(0xFF00F2FE).copy(alpha = pulseAlpha)
-                                                    isFilled -> Color(0xFF00F2FE)
-                                                    else -> Color(0xFF334155).copy(alpha = 0.6f)
+                                                    isCurrent -> primaryColor.copy(alpha = pulseAlpha)
+                                                    isFilled -> primaryColor
+                                                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                                                 },
                                                 shape = RoundedCornerShape(12.dp)
                                             ),
@@ -295,14 +283,13 @@ fun OtpVerificationScreen(
                                             text = char?.toString() ?: "",
                                             fontSize = 22.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                             }
                         }
 
-                        // Auto-paste quick button if clipboard has valid code
                         val clipText = clipboardManager.getText()?.text?.trim()?.filter { it.isDigit() }?.take(6)
                         if (!clipText.isNullOrEmpty() && clipText.length == 6 && otpInput != clipText) {
                             TextButton(
@@ -315,7 +302,7 @@ fun OtpVerificationScreen(
                                 Text(
                                     text = "Paste code from clipboard ($clipText)",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF38BDF8),
+                                    color = primaryColor,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -334,7 +321,7 @@ fun OtpVerificationScreen(
                         Text(
                             text = "Resend code in $secondsRemaining seconds",
                             fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Row(
@@ -371,16 +358,17 @@ fun OtpVerificationScreen(
                         .fillMaxWidth()
                         .height(52.dp)
                         .testTag("verify_button")
-                        .shadow(10.dp, RoundedCornerShape(16.dp), ambientColor = primaryColor.copy(alpha = 0.3f)),
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = primaryColor,
-                        disabledContainerColor = Color(0xFF1E293B)
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     if (isVerifying) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.5.dp
                         )
@@ -389,7 +377,7 @@ fun OtpVerificationScreen(
                             text = "Verify & Continue",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }

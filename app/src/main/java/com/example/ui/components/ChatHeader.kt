@@ -48,7 +48,7 @@ fun ChatHeader(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = Color.White
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
             )
         }
 
@@ -71,7 +71,7 @@ fun ChatHeader(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
-                            .background(Color(0xFF1E293B)),
+                            .background(androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!profilePicUrl.isNullOrEmpty()) {
@@ -91,7 +91,7 @@ fun ChatHeader(
                                 text = recipientName.take(1).uppercase(),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -101,8 +101,8 @@ fun ChatHeader(
                     modifier = Modifier
                         .size(10.dp)
                         .clip(CircleShape)
-                        .background(if (isOnline) Color(0xFF34C759) else Color(0xFF8E8E93))
-                        .border(1.5.dp, Color(0xFF131824), CircleShape)
+                        .background(if (isOnline) Color(0xFF22C55E) else Color(0xFF94A3B8))
+                        .border(1.5.dp, androidx.compose.material3.MaterialTheme.colorScheme.surface, CircleShape)
                         .align(Alignment.BottomEnd)
                 )
             }
@@ -114,12 +114,12 @@ fun ChatHeader(
                     text = recipientName.ifBlank { "User" },
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = if (isOnline) "Online" else statusText.ifBlank { "Offline" },
                     fontSize = 12.sp,
-                    color = if (isOnline) Color(0xFF34C759) else Color(0xFF94A3B8)
+                    color = if (isOnline) Color(0xFF22C55E) else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

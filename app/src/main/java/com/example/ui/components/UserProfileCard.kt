@@ -80,9 +80,9 @@ fun UserProfileCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF12192A))
-            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
+            .border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(16.dp)
     ) {
@@ -98,7 +98,7 @@ fun UserProfileCard(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1E293B)),
+                        .background(androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!profilePicUrl.isNullOrEmpty()) {
@@ -118,7 +118,7 @@ fun UserProfileCard(
                             text = displayName.take(1).uppercase(),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
 
@@ -128,8 +128,8 @@ fun UserProfileCard(
                                 .size(14.dp)
                                 .align(Alignment.BottomEnd)
                                 .clip(CircleShape)
-                                .background(Color(0xFF00E5FF))
-                                .border(2.dp, Color(0xFF12192A), CircleShape)
+                                .background(Color(0xFF22C55E))
+                                .border(2.dp, androidx.compose.material3.MaterialTheme.colorScheme.surface, CircleShape)
                         )
                     }
                 }
@@ -142,20 +142,20 @@ fun UserProfileCard(
                     text = displayName.ifBlank { "Plenxo User" },
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
                 )
                 if (plenxoId.isNotBlank()) {
                     Text(
                         text = plenxoId,
                         fontSize = 13.sp,
-                        color = Color(0xFF00E5FF)
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                     )
                 }
                 if (bio.isNotBlank()) {
                     Text(
                         text = bio,
                         fontSize = 12.sp,
-                        color = Color(0xFF94A3B8),
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }

@@ -53,90 +53,90 @@ object AppThemeMode {
  * Modern High-Contrast Color Schemes
  */
 val PlenxoDarkColorScheme = darkColorScheme(
-    primary = PlenxoElectricViolet,
+    primary = PlenxoBlueDarkPrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF3B0764),
-    onPrimaryContainer = Color(0xFFF3E8FF),
-    secondary = PlenxoNeonCyan,
-    onSecondary = Color(0xFF00363A),
-    secondaryContainer = Color(0xFF004F56),
-    onSecondaryContainer = Color(0xFF97F0FF),
-    tertiary = Color(0xFFD8B4FE),
-    onTertiary = Color(0xFF4C1D95),
-    background = Color(0xFF0B0E14),
-    onBackground = Color(0xFFF8FAFC),
-    surface = Color(0xFF131824),
-    onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFF1E2638),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = Color(0x4DFFFFFF),
+    primaryContainer = PlenxoBlueDarkContainer,
+    onPrimaryContainer = Color(0xFFDBEAFE),
+    secondary = PlenxoBlueSecondary,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF0C4A6E),
+    onSecondaryContainer = Color(0xFFE0F2FE),
+    tertiary = Color(0xFF60A5FA),
+    onTertiary = Color(0xFF0F172A),
+    background = PlenxoNavyBackground,
+    onBackground = PlenxoTextPrimaryDark,
+    surface = PlenxoNavySurface,
+    onSurface = PlenxoTextPrimaryDark,
+    surfaceVariant = PlenxoNavySurfaceVariant,
+    onSurfaceVariant = PlenxoTextSecondaryDark,
+    outline = PlenxoBorderDark,
     error = PlenxoError,
     onError = Color.White
 )
 
 val PlenxoLightColorScheme = lightColorScheme(
-    primary = Color(0xFF7C3AED),
+    primary = PlenxoBluePrimary,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEDE9FE),
-    onPrimaryContainer = Color(0xFF4C1D95),
-    secondary = Color(0xFF0284C7),
+    primaryContainer = PlenxoBlueLightContainer,
+    onPrimaryContainer = Color(0xFF1E40AF),
+    secondary = PlenxoBlueSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE0F2FE),
+    secondaryContainer = Color(0xFFF0F9FF),
     onSecondaryContainer = Color(0xFF0369A1),
-    tertiary = Color(0xFF6D28D9),
+    tertiary = Color(0xFF3B82F6),
     onTertiary = Color.White,
-    background = Color(0xFFF8FAFC),
-    onBackground = Color(0xFF0F172A),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF475569),
-    outline = Color(0xFFCBD5E1),
+    background = PlenxoLightBackground,
+    onBackground = PlenxoTextPrimaryLight,
+    surface = PlenxoLightSurface,
+    onSurface = PlenxoTextPrimaryLight,
+    surfaceVariant = PlenxoLightSurfaceVariant,
+    onSurfaceVariant = PlenxoTextSecondaryLight,
+    outline = PlenxoBorderLight,
     error = PlenxoError,
     onError = Color.White
 )
 
 /**
- * Styling helpers for frosted light-glass & dark-glass UI elements
+ * Styling helpers for UI card & surface elements
  */
 object GlassTheme {
     fun getBackgroundColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF0B0E14) else Color(0xFFF8FAFC)
+        return if (isDark) PlenxoNavyBackground else PlenxoLightBackground
     }
 
     fun getSurfaceColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF131824) else Color(0xFFFFFFFF)
+        return if (isDark) PlenxoNavySurface else PlenxoLightSurface
     }
 
     fun getGlassCardBackground(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF161C2C).copy(alpha = 0.92f) else Color(0xFFFFFFFF).copy(alpha = 0.90f)
+        return if (isDark) PlenxoNavySurfaceVariant else PlenxoLightSurface
     }
 
     fun getGlassBorderColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF2E3B5E).copy(alpha = 0.60f) else Color(0xFFE2E8F0).copy(alpha = 0.85f)
+        return if (isDark) PlenxoBorderDark else PlenxoBorderLight
     }
 
     fun getPrimaryTextColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+        return if (isDark) PlenxoTextPrimaryDark else PlenxoTextPrimaryLight
     }
 
     fun getSecondaryTextColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+        return if (isDark) PlenxoTextSecondaryDark else PlenxoTextSecondaryLight
     }
 
     fun getMutedTextColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
+        return if (isDark) PlenxoTextSecondaryDark else PlenxoTextSecondaryLight
     }
 
     fun getDividerColor(isDark: Boolean): Color {
-        return if (isDark) Color(0xFF242F48) else Color(0xFFE2E8F0)
+        return if (isDark) PlenxoBorderDark else PlenxoBorderLight
     }
 
     fun getBrightGradient(isDark: Boolean): Brush {
         return if (isDark) {
-            Brush.horizontalGradient(listOf(Color(0xFF8A2BE2), Color(0xFF00E5FF)))
+            Brush.horizontalGradient(listOf(PlenxoBlueDarkPrimary, PlenxoBlueSecondary))
         } else {
-            Brush.horizontalGradient(listOf(Color(0xFF7C3AED), Color(0xFF0284C7)))
+            Brush.horizontalGradient(listOf(PlenxoBluePrimary, PlenxoBlueSecondary))
         }
     }
 }
@@ -239,7 +239,7 @@ fun AppTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = androidx.compose.material3.Typography()
+            typography = com.example.ui.theme.Typography
         ) {
             Box(
                 modifier = Modifier
@@ -276,7 +276,7 @@ fun AppTheme(
 
                         // Glowing dividing ribbon at wipe position
                         val ribbonHeight = 6.dp.toPx()
-                        val glowColor = if (isDark) Color(0xFF00E5FF) else Color(0xFF7C3AED)
+                        val glowColor = if (isDark) PlenxoBlueDarkPrimary else PlenxoBluePrimary
 
                         drawRect(
                             brush = Brush.verticalGradient(
