@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "638943348693",
+    "project_id": "plenxo-pro-max",
+    "storage_bucket": "plenxo-pro-max.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:638943348693:android:48162304b4174b7ccf5f5c",
+        "android_client_info": {
+          "package_name": "com.plenxo.me"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBW5ZGkhDJvmY4ghXYuseY5EXWcO-kIQEw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
