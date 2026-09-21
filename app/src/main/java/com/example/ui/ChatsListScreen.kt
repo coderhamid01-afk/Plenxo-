@@ -362,7 +362,7 @@ fun ChatsListScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Left: Profile Picture in Dark Glass Circle with Neon Border & Green Online Dot
+                        // Left: Profile Picture in Dark Glass Circle with Cyan Border & Green Online Dot
                         val contextLocal = LocalContext.current
                         val localRingId = com.example.util.SessionManager.getProfileRingId(contextLocal)
                         val userRingId = if (localRingId != "none") localRingId else (currentUserProfile?.profileRingId ?: "none")
@@ -381,10 +381,10 @@ fun ChatsListScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .border(2.dp, electricCyan, CircleShape),
+                                    .background(Color(0xFF0B182B))
+                                    .border(2.dp, Color(0xFF00A3FF), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val initialChar = currentUserProfile?.displayName?.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "H"
@@ -403,7 +403,7 @@ fun ChatsListScreen(
                                         contentDescription = "Profile Settings",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(42.dp)
+                                            .size(40.dp)
                                             .clip(CircleShape),
                                         loading = {
                                             Box(
@@ -442,58 +442,79 @@ fun ChatsListScreen(
                             // Green online status badge at top right
                             Box(
                                 modifier = Modifier
-                                    .size(12.dp)
+                                    .size(11.dp)
                                     .clip(CircleShape)
                                     .background(Color(0xFF00FF66))
-                                    .border(2.dp, darkSurfaceBg, CircleShape)
+                                    .border(2.dp, Color(0xFF0B0E14), CircleShape)
                                     .align(Alignment.TopEnd)
                             )
                         }
 
-                        // Center: App Title PLENXO with subtle electric cyan glowing line underneath
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        // Center Branding: Stylized Cyan 'P' Icon + "LENXO"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
                             modifier = Modifier.weight(1f)
                         ) {
+                            // Stylized Cyan 'P' Mark
+                            androidx.compose.foundation.Canvas(
+                                modifier = Modifier.size(width = 22.dp, height = 24.dp)
+                            ) {
+                                val w = size.width
+                                val h = size.height
+                                val cyanColor = Color(0xFF00A3FF)
+
+                                val pPath = androidx.compose.ui.graphics.Path().apply {
+                                    fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+                                    // Outer P contour
+                                    moveTo(0f, 0f)
+                                    lineTo(w * 0.62f, 0f)
+                                    cubicTo(w * 1.05f, 0f, w * 1.05f, h * 0.58f, w * 0.62f, h * 0.58f)
+                                    lineTo(w * 0.36f, h * 0.58f)
+                                    lineTo(w * 0.36f, h)
+                                    lineTo(0f, h)
+                                    close()
+
+                                    // Inner P loop cutout
+                                    moveTo(w * 0.36f, h * 0.18f)
+                                    lineTo(w * 0.60f, h * 0.18f)
+                                    cubicTo(w * 0.78f, h * 0.18f, w * 0.78f, h * 0.40f, w * 0.60f, h * 0.40f)
+                                    lineTo(w * 0.36f, h * 0.40f)
+                                    close()
+                                }
+                                drawPath(pPath, color = cyanColor)
+                            }
+
+                            Spacer(modifier = Modifier.width(7.dp))
+
                             Text(
-                                text = "PLENXO",
+                                text = "LENXO",
                                 fontWeight = FontWeight.Black,
-                                fontSize = 22.sp,
-                                letterSpacing = 2.5.sp,
-                                color = electricCyan
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(80.dp)
-                                    .height(2.dp)
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(Color.Transparent, electricCyan, electricBlue, Color.Transparent)
-                                        )
-                                    )
+                                fontSize = 21.sp,
+                                letterSpacing = 2.dp,
+                                color = Color.White
                             )
                         }
 
-                        // Right: Circular Glass Notification Bell & Gear Settings Icons matching Image 1
+                        // Right: Circular Dark-Blue Container Buttons for Notifications & Settings
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Chat Requests / Notifications Button
+                            // Notifications Button
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                                    .background(Color(0xFF0C1D36))
+                                    .border(1.dp, Color(0xFF003870), CircleShape)
                                     .clickable { viewModel.navigateToScreen(PlenxoScreen.CHAT_REQUESTS) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Notifications,
                                     contentDescription = "Notifications",
-                                    tint = electricCyan,
+                                    tint = Color(0xFF00A3FF),
                                     modifier = Modifier.size(20.dp)
                                 )
                                 if (pendingFriendRequests.isNotEmpty()) {
@@ -501,27 +522,27 @@ fun ChatsListScreen(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(electricCyan)
+                                            .background(Color(0xFF00A3FF))
                                             .align(Alignment.TopEnd)
                                             .padding(2.dp)
                                     )
                                 }
                             }
 
-                            // Settings Gear Icon
+                            // Settings Gear Button
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                                    .background(Color(0xFF0C1D36))
+                                    .border(1.dp, Color(0xFF003870), CircleShape)
                                     .clickable { viewModel.navigateToScreen(PlenxoScreen.SETTINGS_NORMAL) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Settings,
                                     contentDescription = "Settings",
-                                    tint = electricCyan,
+                                    tint = Color(0xFF00A3FF),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -537,7 +558,7 @@ fun ChatsListScreen(
                         placeholder = {
                             Text(
                                 "Search added users & messages...",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = Color(0xFF6A88A8),
                                 fontSize = 14.sp
                             )
                         },
@@ -545,8 +566,8 @@ fun ChatsListScreen(
                             Icon(
                                 Icons.Outlined.Search,
                                 contentDescription = "Search",
-                                tint = electricCyan,
-                                modifier = Modifier.size(22.dp)
+                                tint = Color(0xFF00A3FF),
+                                modifier = Modifier.size(20.dp)
                             )
                         },
                         trailingIcon = {
@@ -555,7 +576,7 @@ fun ChatsListScreen(
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = "Clear Search",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = Color(0xFF6A88A8),
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -564,23 +585,22 @@ fun ChatsListScreen(
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             lineHeight = 18.sp,
                             platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedBorderColor = electricCyan,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                            focusedContainerColor = Color(0xFF0A182B),
+                            unfocusedContainerColor = Color(0xFF0A182B),
+                            focusedBorderColor = Color(0xFF00A3FF),
+                            unfocusedBorderColor = Color(0xFF003870),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 48.dp, max = 52.dp)
-                            .shadow(2.dp, RoundedCornerShape(16.dp))
                             .testTag("chats_search_input")
                     )
 
@@ -997,23 +1017,16 @@ private fun FilterPill(
     activeColor: Color,
     onClick: () -> Unit
 ) {
-    val electricCyan = MaterialTheme.colorScheme.primary
-    val electricBlue = MaterialTheme.colorScheme.primary
-    val containerBg = if (isSelected) {
-        Brush.linearGradient(listOf(electricBlue, electricCyan))
-    } else {
-        Brush.linearGradient(listOf(Color(0xFF0A0E17), Color(0xFF0A0E17)))
-    }
-    val textColor = if (isSelected) Color.White else Color(0xFF94A3B8)
-    val borderColor = electricCyan.copy(alpha = if (isSelected) 1f else 0.6f)
+    val pillBg = if (isSelected) Color(0xFF0080FF) else Color(0xFF081426)
+    val borderColor = if (isSelected) Color(0xFF00A3FF) else Color(0xFF004888)
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(containerBg)
-            .border(1.5.dp, borderColor, RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(pillBg)
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1021,7 +1034,7 @@ private fun FilterPill(
                 text = label,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = textColor
+                color = Color.White
             )
             if (count > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
@@ -1029,7 +1042,7 @@ private fun FilterPill(
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(
-                            if (isSelected) Color.White.copy(alpha = 0.3f) else Color(0xFF131B2E)
+                            if (isSelected) Color.White.copy(alpha = 0.28f) else Color(0xFF003870)
                         )
                         .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
