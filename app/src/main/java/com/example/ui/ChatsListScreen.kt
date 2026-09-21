@@ -491,7 +491,7 @@ fun ChatsListScreen(
                                 text = "LENXO",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 21.sp,
-                                letterSpacing = 2.dp,
+                                letterSpacing = 2.sp,
                                 color = Color.White
                             )
                         }

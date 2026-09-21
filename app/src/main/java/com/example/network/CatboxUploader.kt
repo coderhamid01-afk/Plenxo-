@@ -34,6 +34,13 @@ import java.util.concurrent.TimeUnit
 object CatboxUploader {
 
     private const val TAG = "CatboxUploader"
+
+    fun isValidRemoteMediaUrl(url: String): Boolean {
+        if (url.isBlank()) return false
+        val lower = url.trim().lowercase()
+        if (lower.contains("<html") || lower.contains("<body") || lower.contains("<!doctype") || lower.contains("<div") || lower.contains("error")) return false
+        return lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:")
+    }
     const val CATBOX_URL = "https://catbox.moe/user/api.php"
     const val CATBOX_USERHASH = "9522593a4a22790d1bf20a178"
     const val REQTYPE_FILEUPLOAD = "fileupload"
@@ -101,7 +108,7 @@ object CatboxUploader {
             val responseCode = response.code
             val responseText = response.body?.string()?.trim() ?: ""
 
-            if (response.isSuccessful && responseText.isNotBlank() && responseText.startsWith("http")) {
+            if (response.isSuccessful && isValidRemoteMediaUrl(responseText)) {
                 onProgress?.invoke(100)
                 Log.d(TAG, "Catbox primary upload succeeded! URL: $responseText")
                 return@withContext responseText
@@ -131,7 +138,7 @@ object CatboxUploader {
             val responseCode = response.code
             val responseText = response.body?.string()?.trim() ?: ""
 
-            if (response.isSuccessful && responseText.isNotBlank() && responseText.startsWith("http")) {
+            if (response.isSuccessful && isValidRemoteMediaUrl(responseText)) {
                 onProgress?.invoke(100)
                 Log.d(TAG, "Litterbox upload succeeded! URL: $responseText")
                 return@withContext responseText
@@ -164,9 +171,11 @@ object CatboxUploader {
                 if (json.optString("status") == "success") {
                     val pageUrl = json.getJSONObject("data").getString("url")
                     val directUrl = pageUrl.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
-                    onProgress?.invoke(100)
-                    Log.d(TAG, "tmpfiles.org upload succeeded! URL: $directUrl")
-                    return@withContext directUrl
+                    if (isValidRemoteMediaUrl(directUrl)) {
+                        onProgress?.invoke(100)
+                        Log.d(TAG, "tmpfiles.org upload succeeded! URL: $directUrl")
+                        return@withContext directUrl
+                    }
                 }
             } else {
                 Log.w(TAG, "tmpfiles.org failed (HTTP $responseCode): $responseText")

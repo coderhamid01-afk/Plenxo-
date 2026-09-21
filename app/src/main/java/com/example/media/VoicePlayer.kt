@@ -15,145 +15,28 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class VoicePlayer(private val context: Context) {
-    private var exoPlayer: ExoPlayer? = null
-    
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
-
-    private val _currentUrl = MutableStateFlow<String?>(null)
-    val currentUrl: StateFlow<String?> = _currentUrl.asStateFlow()
-
-    private val _progress = MutableStateFlow(0f)
-    val progress: StateFlow<Float> = _progress.asStateFlow()
-
-    private val _duration = MutableStateFlow(0L)
-    val duration: StateFlow<Long> = _duration.asStateFlow()
-
-    private val _currentPosition = MutableStateFlow(0L)
-    val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
-
-    private var progressJob: Job? = null
+    private val audioPlayerManager = AudioPlayerManager.getInstance(context)
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
-    private val listener = object : Player.Listener {
-        override fun onIsPlayingChanged(playing: Boolean) {
-            _isPlaying.value = playing
-            if (playing) {
-                startProgressPolling()
-            } else {
-                stopProgressPolling()
-            }
-        }
+    val isPlaying: StateFlow<Boolean>
+        get() = MutableStateFlow(audioPlayerManager.playbackState.value.isPlaying).asStateFlow()
 
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            when (playbackState) {
-                Player.STATE_READY -> {
-                    _duration.value = exoPlayer?.duration ?: 0L
-                }
-                Player.STATE_ENDED -> {
-                    _isPlaying.value = false
-                    _progress.value = 0f
-                    _currentPosition.value = 0L
-                    exoPlayer?.seekTo(0)
-                    exoPlayer?.pause()
-                    stopProgressPolling()
-                }
-                Player.STATE_BUFFERING -> {
-                    Log.d("VoicePlayer", "Buffering streaming audio...")
-                }
-                Player.STATE_IDLE -> {
-                    stopProgressPolling()
-                }
-            }
-        }
-    }
-
-    private fun initPlayer() {
-        if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
-                addListener(listener)
-            }
-        }
-    }
+    val currentUrl: StateFlow<String?>
+        get() = MutableStateFlow(audioPlayerManager.playbackState.value.currentUrl).asStateFlow()
 
     fun play(url: String) {
-        initPlayer()
-        val player = exoPlayer ?: return
-
-        if (_currentUrl.value == url) {
-            if (player.isPlaying) {
-                player.pause()
-            } else {
-                player.play()
-            }
-        } else {
-            player.stop()
-            _currentUrl.value = url
-            _progress.value = 0f
-            _currentPosition.value = 0L
-            val mediaItem = MediaItem.fromUri(url)
-            player.setMediaItem(mediaItem)
-            player.prepare()
-            player.play()
-        }
-    }
-
-    fun setPlaybackSpeed(speed: Float) {
-        exoPlayer?.let { player ->
-            try {
-                player.setPlaybackSpeed(speed)
-                Log.d("VoicePlayer", "Playback speed set to $speed")
-            } catch (e: Exception) {
-                Log.e("VoicePlayer", "Failed to set playback speed", e)
-            }
-        }
+        audioPlayerManager.playAudio(url)
     }
 
     fun pause() {
-        exoPlayer?.pause()
+        audioPlayerManager.pauseAudio()
     }
 
     fun stop() {
-        exoPlayer?.stop()
-        _isPlaying.value = false
-        _currentUrl.value = null
-        _progress.value = 0f
-        _currentPosition.value = 0L
-        stopProgressPolling()
+        audioPlayerManager.pauseAudio()
     }
 
     fun release() {
-        stopProgressPolling()
-        exoPlayer?.removeListener(listener)
-        exoPlayer?.release()
-        exoPlayer = null
-        _isPlaying.value = false
-        _currentUrl.value = null
-        _progress.value = 0f
-        _currentPosition.value = 0L
-    }
-
-    private fun startProgressPolling() {
-        stopProgressPolling()
-        progressJob = scope.launch {
-            while (true) {
-                exoPlayer?.let { player ->
-                    if (player.isPlaying) {
-                        val pos = player.currentPosition
-                        val dur = player.duration
-                        _currentPosition.value = pos
-                        if (dur > 0) {
-                            _progress.value = pos.toFloat() / dur.toFloat()
-                        }
-                    }
-                }
-                delay(50)
-            }
-        }
-    }
-
-    private fun stopProgressPolling() {
-        progressJob?.cancel()
-        progressJob = null
+        // AudioPlayerManager is a singleton, no-op release per instance call
     }
 }

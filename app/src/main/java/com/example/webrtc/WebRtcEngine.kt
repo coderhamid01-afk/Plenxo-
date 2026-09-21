@@ -49,6 +49,7 @@ class WebRtcEngine(private val context: Context) {
     private var isFrontFacingCamera = true
     
     private val pendingRemoteIceCandidates = mutableListOf<IceCandidate>()
+    private val addedIceCandidateKeys = mutableSetOf<String>()
 
     init {
         initializeFactory()
@@ -347,6 +348,7 @@ class WebRtcEngine(private val context: Context) {
                 // Flush pending ICE candidates
                 synchronized(pendingRemoteIceCandidates) {
                     for (candidate in pendingRemoteIceCandidates) {
+                        Log.d(TAG, "[ICE] Flushed queued candidate: ${candidate.sdpMid}")
                         peerConnection?.addIceCandidate(candidate)
                     }
                     pendingRemoteIceCandidates.clear()
@@ -367,11 +369,22 @@ class WebRtcEngine(private val context: Context) {
      */
     fun addIceCandidate(candidate: IceCandidate) {
         try {
+            val candidateKey = "${candidate.sdpMid}_${candidate.sdpMLineIndex}_${candidate.sdp}"
+            synchronized(addedIceCandidateKeys) {
+                if (addedIceCandidateKeys.contains(candidateKey)) {
+                    Log.d(TAG, "[ICE] Duplicate candidate ignored: ${candidate.sdpMid}")
+                    return
+                }
+                addedIceCandidateKeys.add(candidateKey)
+            }
+
             if (peerConnection?.remoteDescription == null) {
                 synchronized(pendingRemoteIceCandidates) {
+                    Log.d(TAG, "[ICE] Queued candidate before remote description: ${candidate.sdpMid}")
                     pendingRemoteIceCandidates.add(candidate)
                 }
             } else {
+                Log.d(TAG, "[ICE] Added candidate immediately: ${candidate.sdpMid}")
                 peerConnection?.addIceCandidate(candidate)
             }
         } catch (e: Exception) {
@@ -454,6 +467,13 @@ class WebRtcEngine(private val context: Context) {
 
             audioSource?.dispose()
             audioSource = null
+
+            synchronized(pendingRemoteIceCandidates) {
+                pendingRemoteIceCandidates.clear()
+            }
+            synchronized(addedIceCandidateKeys) {
+                addedIceCandidateKeys.clear()
+            }
 
             peerConnection?.close()
             peerConnection?.dispose()

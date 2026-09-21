@@ -49,6 +49,8 @@ object CallManager {
     val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
 
     private var incomingOfferSdp: String? = null
+    private var isCallAccepted: Boolean = false
+    private var isAnswerCreated: Boolean = false
 
     private var timerJob: Job? = null
     private var ringTimerJob: Job? = null
@@ -297,10 +299,25 @@ object CallManager {
 
         _activeCall.value = session
 
-        // Listen if caller cancels before we answer
-        callRepository.listenToCallDocument(callId) { status ->
-            if (status == "ENDED" || status == "DECLINED") {
+        // Listen for document changes (e.g., Offer SDP arrival or caller cancellation)
+        callRepository.listenToCallDocument(callId) { snapshot ->
+            val status = snapshot.getString("status") ?: ""
+            if (status == "ENDED" || status == "DECLINED" || status == "CANCELLED" || status == "TIMEOUT") {
                 onRemoteEnded(status)
+                return@listenToCallDocument
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val offerMap = snapshot.get("offer") as? Map<String, Any?>
+            val offerSdp = offerMap?.get("sdp") as? String
+
+            if (!offerSdp.isNullOrBlank()) {
+                incomingOfferSdp = offerSdp
+                Log.d(TAG, "Incoming Offer SDP received for call $callId")
+                if (isCallAccepted && !isAnswerCreated) {
+                    Log.d(TAG, "Call was already accepted by user! Processing Offer and generating Answer now.")
+                    processOfferAndSendAnswer(callId, offerSdp)
+                }
             }
         }
         
@@ -314,8 +331,11 @@ object CallManager {
         val current = _activeCall.value ?: return
         if (current.callState != CallState.INCOMING_RINGING) return
 
+        isCallAccepted = true
         val callId = current.callId
         val initialRoute = if (current.callType == CallType.VIDEO) AudioOutputRoute.SPEAKER else AudioOutputRoute.EARPIECE
+
+        _activeCall.value = current.copy(peerStatus = "Connecting...")
 
         // 1. Audio Routing
         audioRouteManager = AudioRouteManager(appContext).apply {
@@ -351,18 +371,18 @@ object CallManager {
         }
 
         engine.onIceStateChanged = { state ->
-            val current = _activeCall.value
-            if (current != null) {
+            val activeSession = _activeCall.value
+            if (activeSession != null) {
                 when (state) {
                     org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
                     org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
-                        if (current.callState != CallState.CONNECTED) {
+                        if (activeSession.callState != CallState.CONNECTED) {
                             transitionToConnected()
                         }
                     }
                     org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
-                        if (current.callState == CallState.CONNECTED) {
-                            _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
+                        if (activeSession.callState == CallState.CONNECTED) {
+                            _activeCall.value = activeSession.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
                         }
                     }
                     org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
@@ -376,32 +396,51 @@ object CallManager {
         engine.setupLocalMedia(isVideo = (current.callType == CallType.VIDEO), useFrontCamera = true)
         engine.createPeerConnection()
 
-        // 3. Set Remote Offer & Create Answer
-        val offerSdp = incomingOfferSdp
-        if (!offerSdp.isNullOrBlank()) {
-            val offerDesc = SessionDescription(SessionDescription.Type.OFFER, offerSdp)
-            engine.setRemoteDescription(offerDesc) { success ->
-                if (success) {
-                    engine.createAnswer(
-                        onSuccess = { answerDesc ->
-                            scope.launch {
-                                callRepository.sendAnswer(callId, answerDesc.description)
-                            }
-                        },
-                        onFailure = { error ->
-                            Log.e(TAG, "Failed to create answer: $error")
-                            terminateCall(CallState.FAILED, "Failed to create answer")
-                        }
-                    )
-                } else {
-                    terminateCall(CallState.FAILED, "Failed to set remote description")
-                }
-            }
-        }
-
         // Listen for remote ICE candidates from Caller
         callRepository.listenForRemoteIceCandidates(callId, isCaller = false) { candidate ->
             engine.addIceCandidate(candidate)
+        }
+
+        // 3. Set Remote Offer & Create Answer if Offer SDP is available
+        val offerSdp = incomingOfferSdp
+        if (!offerSdp.isNullOrBlank()) {
+            Log.d(TAG, "Offer SDP is already available. Processing Offer and generating Answer now.")
+            processOfferAndSendAnswer(callId, offerSdp)
+        } else {
+            Log.d(TAG, "User accepted call, but Offer SDP has not arrived in Firestore yet. Waiting for Offer in document listener...")
+        }
+    }
+
+    private fun processOfferAndSendAnswer(callId: String, offerSdp: String) {
+        val engine = webRtcEngine ?: run {
+            Log.e(TAG, "Cannot process offer: webRtcEngine is null")
+            return
+        }
+        if (isAnswerCreated) {
+            Log.w(TAG, "Answer already created/processed for call $callId, skipping duplicate processing")
+            return
+        }
+        isAnswerCreated = true
+
+        val offerDesc = SessionDescription(SessionDescription.Type.OFFER, offerSdp)
+        engine.setRemoteDescription(offerDesc) { success ->
+            if (success) {
+                engine.createAnswer(
+                    onSuccess = { answerDesc ->
+                        scope.launch {
+                            callRepository.sendAnswer(callId, answerDesc.description)
+                            Log.d(TAG, "SDP Answer successfully sent to Firestore for call $callId")
+                        }
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to create answer: $error")
+                        terminateCall(CallState.FAILED, "Failed to create answer")
+                    }
+                )
+            } else {
+                Log.e(TAG, "Failed to set remote description")
+                terminateCall(CallState.FAILED, "Failed to set remote description")
+            }
         }
     }
 
@@ -620,6 +659,8 @@ object CallManager {
         ringTimerJob?.cancel()
         ringTimerJob = null
         incomingOfferSdp = null
+        isCallAccepted = false
+        isAnswerCreated = false
         
         try {
             val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager

@@ -20,6 +20,10 @@ import kotlinx.coroutines.launch
 
 data class PlaybackState(
     val isPlaying: Boolean = false,
+    val isLoading: Boolean = false,
+    val isBuffering: Boolean = false,
+    val hasError: Boolean = false,
+    val errorMessage: String? = null,
     val currentPositionMs: Long = 0L,
     val totalDurationMs: Long = 0L,
     val currentUrl: String? = null
@@ -50,8 +54,12 @@ class AudioPlayerManager(private val context: Context) {
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            Log.d(TAG, "onIsPlayingChanged: $isPlaying")
-            _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
+            Log.d(TAG, "playing: $isPlaying")
+            _playbackState.value = _playbackState.value.copy(
+                isPlaying = isPlaying,
+                isLoading = false,
+                isBuffering = false
+            )
             if (isPlaying) {
                 startProgressPolling()
             } else {
@@ -60,17 +68,31 @@ class AudioPlayerManager(private val context: Context) {
         }
 
         override fun onPlaybackStateChanged(playbackStateInt: Int) {
-            Log.d(TAG, "onPlaybackStateChanged: $playbackStateInt")
             when (playbackStateInt) {
+                Player.STATE_BUFFERING -> {
+                    Log.d(TAG, "buffering...")
+                    _playbackState.value = _playbackState.value.copy(
+                        isBuffering = true,
+                        isLoading = true
+                    )
+                }
                 Player.STATE_READY -> {
+                    Log.d(TAG, "READY")
                     val duration = exoPlayer?.duration ?: 0L
                     _playbackState.value = _playbackState.value.copy(
+                        isBuffering = false,
+                        isLoading = false,
+                        hasError = false,
+                        errorMessage = null,
                         totalDurationMs = if (duration > 0) duration else _playbackState.value.totalDurationMs
                     )
                 }
                 Player.STATE_ENDED -> {
+                    Log.d(TAG, "ENDED")
                     _playbackState.value = _playbackState.value.copy(
                         isPlaying = false,
+                        isBuffering = false,
+                        isLoading = false,
                         currentPositionMs = 0L
                     )
                     exoPlayer?.seekTo(0)
@@ -84,8 +106,14 @@ class AudioPlayerManager(private val context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e(TAG, "Audio playback error [ErrorCode: ${error.errorCodeName}]: ${error.message}", error)
-            _playbackState.value = _playbackState.value.copy(isPlaying = false)
+            Log.e(TAG, "ERROR: ${error.message} [ErrorCode: ${error.errorCodeName}]", error)
+            _playbackState.value = _playbackState.value.copy(
+                isPlaying = false,
+                isBuffering = false,
+                isLoading = false,
+                hasError = true,
+                errorMessage = error.localizedMessage ?: "Playback error"
+            )
             stopProgressPolling()
         }
     }
@@ -107,11 +135,13 @@ class AudioPlayerManager(private val context: Context) {
                     .build().apply {
                         addListener(playerListener)
                     }
+                Log.d(TAG, "player initialized")
             } catch (e: Exception) {
                 Log.e(TAG, "Error initializing ExoPlayer", e)
                 exoPlayer = ExoPlayer.Builder(context.applicationContext).build().apply {
                     addListener(playerListener)
                 }
+                Log.d(TAG, "player initialized (fallback)")
             }
         }
     }
@@ -126,6 +156,7 @@ class AudioPlayerManager(private val context: Context) {
             return
         }
 
+        Log.d(TAG, "voice URL received: $url")
         ensurePlayerInitialized()
         val player = exoPlayer ?: return
 
@@ -148,6 +179,10 @@ class AudioPlayerManager(private val context: Context) {
             
             _playbackState.value = PlaybackState(
                 isPlaying = false,
+                isLoading = true,
+                isBuffering = true,
+                hasError = false,
+                errorMessage = null,
                 currentPositionMs = 0L,
                 totalDurationMs = 0L,
                 currentUrl = url
@@ -156,12 +191,19 @@ class AudioPlayerManager(private val context: Context) {
             try {
                 val uri = Uri.parse(url)
                 val mediaItem = MediaItem.fromUri(uri)
+                Log.d(TAG, "media item created for: $url")
                 player.setMediaItem(mediaItem)
                 player.playWhenReady = true
                 player.prepare()
                 player.play()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start audio playback for $url", e)
+                _playbackState.value = _playbackState.value.copy(
+                    isLoading = false,
+                    isBuffering = false,
+                    hasError = true,
+                    errorMessage = e.message
+                )
             }
         }
     }

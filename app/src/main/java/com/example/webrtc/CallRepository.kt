@@ -135,18 +135,17 @@ class CallRepository(private val firestore: FirebaseFirestore = FirebaseFirestor
     }
 
     /**
-     * Receiver listens for call document changes (e.g. caller cancels).
+     * Receiver listens for call document changes (e.g. caller cancels or SDP Offer arrives).
      */
     fun listenToCallDocument(
         callId: String,
-        onStatusChanged: (String) -> Unit
+        onSnapshotReceived: (DocumentSnapshot) -> Unit
     ) {
         callDocListener?.remove()
         callDocListener = firestore.collection("calls").document(callId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-                val status = snapshot.getString("status") ?: ""
-                onStatusChanged(status)
+                onSnapshotReceived(snapshot)
             }
     }
 
