@@ -3,10 +3,11 @@
     <!-- Deep Space Black / Obsidian Black -->
     <color name="deep_space_black">#0B0E14</color>
     <color name="obsidian_black">#0B0E14</color>
-    <!-- Electric Violet -->
-    <color name="electric_violet">#8A2BE2</color>
-    <!-- Cyan -->
-    <color name="cyan">#00FFFF</color>
+    <!-- Plenxo Brand Blue Palette -->
+    <color name="plenxo_blue">#00A3FF</color>
+    <color name="plenxo_primary">#2563EB</color>
+    <color name="electric_violet">#2563EB</color>
+    <color name="cyan">#00A3FF</color>
     <!-- Glass Background -->
     <color name="glass_bg">#1AFFFFFF</color>
     

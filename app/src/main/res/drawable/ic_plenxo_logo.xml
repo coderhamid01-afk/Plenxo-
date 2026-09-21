@@ -21,7 +21,7 @@
         </aapt:attr>
     </path>
 
-    <!-- Neon Cyan Diamond Squircle Border -->
+    <!-- Plenxo Blue Diamond Squircle Border -->
     <path
         android:pathData="M60,10 C88,10 110,32 110,60 C110,88 88,110 60,110 C32,110 10,88 10,60 C10,32 32,10 60,10 Z"
         android:strokeWidth="2.5">

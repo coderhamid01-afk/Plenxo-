@@ -106,10 +106,10 @@ fun ProfileRingsScreen(
             // NEW RINGS
             RingOption(
                 id = "ring_tier_6",
-                name = "Neon Cyber Ring",
-                brush = Brush.sweepGradient(listOf(Color(0xFF00FFFF), Color(0xFFFF00FF))),
-                colors = listOf(Color(0xFF00FFFF), Color(0xFFFF00FF)),
-                description = "Pulsing cyan and magenta gradient."
+                name = "Sky Blue Pulse Ring",
+                brush = Brush.sweepGradient(listOf(Color(0xFF00A3FF), Color(0xFF2563EB), Color(0xFF38BDF8))),
+                colors = listOf(Color(0xFF00A3FF), Color(0xFF2563EB)),
+                description = "Pulsing sky blue and royal blue gradient."
             ),
             RingOption(
                 id = "ring_tier_7",
@@ -120,10 +120,10 @@ fun ProfileRingsScreen(
             ),
             RingOption(
                 id = "ring_tier_8",
-                name = "Amethyst Void Ring",
-                brush = Brush.linearGradient(listOf(Color(0xFF8A2BE2), Color(0xFF000000))),
-                colors = listOf(Color(0xFF8A2BE2), Color(0xFF000000)),
-                description = "Deep purple and black void."
+                name = "Cobalt Void Ring",
+                brush = Brush.linearGradient(listOf(Color(0xFF1E3A8A), Color(0xFF0F172A))),
+                colors = listOf(Color(0xFF1E3A8A), Color(0xFF0F172A)),
+                description = "Deep cobalt blue and navy void."
             ),
             RingOption(
                 id = "ring_tier_9",
@@ -135,16 +135,16 @@ fun ProfileRingsScreen(
             RingOption(
                 id = "ring_tier_10",
                 name = "Diamond Frost Ring",
-                brush = Brush.linearGradient(listOf(Color(0xFFE0FFFF), Color(0xFFFFFFFF))),
-                colors = listOf(Color(0xFFE0FFFF), Color(0xFFFFFFFF)),
+                brush = Brush.linearGradient(listOf(Color(0xFFE0F2FE), Color(0xFFFFFFFF))),
+                colors = listOf(Color(0xFFE0F2FE), Color(0xFFFFFFFF)),
                 description = "Icy blue and white frost."
             ),
             RingOption(
                 id = "ring_tier_11",
-                name = "Cyberpunk Neon",
-                brush = Brush.linearGradient(listOf(Color(0xFF8A2BE2), Color(0xFFFF007F), Color(0xFFFFD700))),
-                colors = listOf(Color(0xFF8A2BE2), Color(0xFFFF007F), Color(0xFFFFD700)),
-                description = "Cyberpunk neon purple, pink and gold."
+                name = "Plenxo Halo",
+                brush = Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF38BDF8), Color(0xFF0284C7))),
+                colors = listOf(Color(0xFF2563EB), Color(0xFF38BDF8), Color(0xFF0284C7)),
+                description = "Signature Plenxo royal blue halo."
             ),
             RingOption(
                 id = "ring_tier_12",

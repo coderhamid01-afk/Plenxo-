@@ -148,13 +148,16 @@ class WebRtcEngine(private val context: Context) {
     }
 
     /**
-     * Create PeerConnection with STUN servers and Unified Plan.
+     * Create PeerConnection with STUN/TURN servers and Unified Plan.
      */
     fun createPeerConnection() {
+        resetIceCandidateQueue()
         val factory = peerConnectionFactory ?: return
 
         val iceServers = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
+            PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
                 .setUsername("openrelayproject")
                 .setPassword("openrelayproject")
@@ -172,6 +175,10 @@ class WebRtcEngine(private val context: Context) {
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+            iceTransportsType = PeerConnection.IceTransportsType.ALL
+            bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
+            rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
+            tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
         }
 
         peerConnection = factory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
@@ -209,7 +216,7 @@ class WebRtcEngine(private val context: Context) {
 
             override fun onIceCandidate(candidate: IceCandidate?) {
                 if (candidate != null) {
-                    Log.d(TAG, "Gathered local ICE candidate: ${candidate.sdpMid}")
+                    Log.d(TAG, "Gathered local ICE candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
                     scope.launch { onIceCandidateGathered?.invoke(candidate) }
                 }
             }
@@ -337,6 +344,19 @@ class WebRtcEngine(private val context: Context) {
     }
 
     /**
+     * Reset pending ICE candidate queue and added candidate key tracking.
+     */
+    fun resetIceCandidateQueue() {
+        synchronized(pendingRemoteIceCandidates) {
+            pendingRemoteIceCandidates.clear()
+        }
+        synchronized(addedIceCandidateKeys) {
+            addedIceCandidateKeys.clear()
+        }
+        Log.d(TAG, "[ICE] Pending candidate queue and deduplication keys reset")
+    }
+
+    /**
      * Set Remote Description (Offer or Answer)
      */
     fun setRemoteDescription(sdp: SessionDescription, onComplete: ((Boolean) -> Unit)? = null) {
@@ -347,10 +367,14 @@ class WebRtcEngine(private val context: Context) {
                 
                 // Flush pending ICE candidates
                 synchronized(pendingRemoteIceCandidates) {
+                    val total = pendingRemoteIceCandidates.size
+                    var addedCount = 0
                     for (candidate in pendingRemoteIceCandidates) {
-                        Log.d(TAG, "[ICE] Flushed queued candidate: ${candidate.sdpMid}")
-                        peerConnection?.addIceCandidate(candidate)
+                        Log.d(TAG, "[ICE] Flushed queued candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+                        val added = peerConnection?.addIceCandidate(candidate) ?: false
+                        if (added) addedCount++
                     }
+                    Log.d(TAG, "[ICE] Flushed $addedCount/$total queued candidate(s) successfully")
                     pendingRemoteIceCandidates.clear()
                 }
                 

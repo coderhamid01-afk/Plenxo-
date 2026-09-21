@@ -54,7 +54,7 @@ import com.example.calling.model.CallType
 private val GreenAccept = Color(0xFF10B981)
 private val RedDecline = Color(0xFFEF4444)
 private val BlueAccent = Color(0xFF2563EB)
-private val PurpleAccent = Color(0xFFA855F7)
+private val LightBlueAccent = Color(0xFF0284C7)
 
 @Composable
 fun IncomingCallOverlay(
@@ -122,11 +122,11 @@ fun IncomingCallOverlay(
 
             // Call Type Badge ("Incoming Video Call" vs "Incoming Voice Call")
             Surface(
-                color = if (isVideo) PurpleAccent.copy(alpha = 0.2f) else BlueAccent.copy(alpha = 0.2f),
+                color = if (isVideo) LightBlueAccent.copy(alpha = 0.2f) else BlueAccent.copy(alpha = 0.2f),
                 shape = RoundedCornerShape(24.dp),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    if (isVideo) PurpleAccent.copy(alpha = 0.6f) else BlueAccent.copy(alpha = 0.6f)
+                    if (isVideo) LightBlueAccent.copy(alpha = 0.6f) else BlueAccent.copy(alpha = 0.6f)
                 )
             ) {
                 Row(
@@ -136,7 +136,7 @@ fun IncomingCallOverlay(
                     Icon(
                         imageVector = if (isVideo) Icons.Default.Videocam else Icons.Default.Call,
                         contentDescription = "Call Type",
-                        tint = if (isVideo) PurpleAccent else BlueAccent,
+                        tint = if (isVideo) LightBlueAccent else BlueAccent,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -162,7 +162,7 @@ fun IncomingCallOverlay(
                         .size(150.dp)
                         .scale(ringScale)
                         .background(
-                            (if (isVideo) PurpleAccent else GreenAccept).copy(alpha = ringAlpha),
+                            (if (isVideo) LightBlueAccent else GreenAccept).copy(alpha = ringAlpha),
                             CircleShape
                         )
                 )
@@ -175,7 +175,7 @@ fun IncomingCallOverlay(
                         .background(Color(0xFF1E293B))
                         .border(
                             3.dp,
-                            if (isVideo) PurpleAccent else GreenAccept,
+                            if (isVideo) LightBlueAccent else GreenAccept,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
