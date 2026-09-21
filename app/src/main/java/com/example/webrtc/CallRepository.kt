@@ -180,6 +180,7 @@ class CallRepository(private val firestore: FirebaseFirestore = FirebaseFirestor
         isCaller: Boolean,
         onCandidateReceived: (IceCandidate) -> Unit
     ) {
+        if (callId.isBlank()) return
         // If we are caller, listen to receiverCandidates; if receiver, listen to callerCandidates
         val targetCollection = if (isCaller) "receiverCandidates" else "callerCandidates"
         candidatesListener?.remove()
@@ -190,7 +191,7 @@ class CallRepository(private val firestore: FirebaseFirestore = FirebaseFirestor
             .collection(targetCollection)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    Log.e(TAG, "Error listening for ICE candidates: ${error.message}")
+                    Log.e(TAG, "[CallId: $callId] Error listening for ICE candidates: ${error.message}")
                     return@addSnapshotListener
                 }
 
@@ -202,10 +203,12 @@ class CallRepository(private val firestore: FirebaseFirestore = FirebaseFirestor
                         val sdpMLineIndex = doc.getLong("sdpMLineIndex")?.toInt() ?: 0
                         val sdp = doc.getString("sdp") ?: ""
 
-                        if (sdp.isNotEmpty()) {
+                        if (sdp.isNotBlank()) {
                             val candidate = IceCandidate(sdpMid, sdpMLineIndex, sdp)
-                            Log.d(TAG, "Received remote ICE candidate from $targetCollection")
+                            Log.d(TAG, "[CallId: $callId] Received remote ICE candidate from $targetCollection: sdpMid=$sdpMid, index=$sdpMLineIndex")
                             onCandidateReceived(candidate)
+                        } else {
+                            Log.w(TAG, "[CallId: $callId] Ignored blank/malformed remote ICE candidate doc: ${doc.id}")
                         }
                     }
                 }

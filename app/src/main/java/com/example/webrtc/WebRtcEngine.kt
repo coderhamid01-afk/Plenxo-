@@ -47,9 +47,15 @@ class WebRtcEngine(private val context: Context) {
 
     private var isVideoCall = false
     private var isFrontFacingCamera = true
+    var currentCallId: String? = null
     
     private val pendingRemoteIceCandidates = mutableListOf<IceCandidate>()
-    private val addedIceCandidateKeys = mutableSetOf<String>()
+    private val successfullyAddedCandidateKeys = mutableSetOf<String>()
+    private var isFlushingIceCandidates = false
+
+    private fun getCandidateKey(candidate: IceCandidate): String {
+        return "${candidate.sdpMid}_${candidate.sdpMLineIndex}_${candidate.sdp}"
+    }
 
     init {
         initializeFactory()
@@ -154,40 +160,15 @@ class WebRtcEngine(private val context: Context) {
         resetIceCandidateQueue()
         val factory = peerConnectionFactory ?: return
 
-        val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
-                .setUsername("openrelayproject")
-                .setPassword("openrelayproject")
-                .createIceServer(),
-            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443")
-                .setUsername("openrelayproject")
-                .setPassword("openrelayproject")
-                .createIceServer(),
-            PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443?transport=tcp")
-                .setUsername("openrelayproject")
-                .setPassword("openrelayproject")
-                .createIceServer()
-        )
-
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
-            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
-            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-            iceTransportsType = PeerConnection.IceTransportsType.ALL
-            bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
-            rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
-            tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
-        }
+        val rtcConfig = IceServerConfig.buildRtcConfiguration()
 
         peerConnection = factory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) {
-                Log.d(TAG, "onSignalingChange: $state")
+                Log.d(TAG, "[CallId: $currentCallId] onSignalingChange: $state")
             }
 
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-                Log.d(TAG, "onIceConnectionChange: $state")
+                Log.d(TAG, "[CallId: $currentCallId] onIceConnectionChange: $state")
                 if (state != null) {
                     scope.launch { onIceStateChanged?.invoke(state) }
                 }
@@ -211,12 +192,12 @@ class WebRtcEngine(private val context: Context) {
             override fun onIceConnectionReceivingChange(receiving: Boolean) {}
 
             override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
-                Log.d(TAG, "onIceGatheringChange: $state")
+                Log.d(TAG, "[CallId: $currentCallId] onIceGatheringChange: $state")
             }
 
             override fun onIceCandidate(candidate: IceCandidate?) {
                 if (candidate != null) {
-                    Log.d(TAG, "Gathered local ICE candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+                    Log.d(TAG, "[CallId: $currentCallId] Gathered local ICE candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
                     scope.launch { onIceCandidateGathered?.invoke(candidate) }
                 }
             }
@@ -336,7 +317,46 @@ class WebRtcEngine(private val context: Context) {
 
             override fun onSetSuccess() {}
             override fun onCreateFailure(error: String?) {
-                Log.e(TAG, "Failed to create SDP answer: $error")
+                Log.e(TAG, "[CallId: $currentCallId] Failed to create SDP answer: $error")
+                scope.launch { onFailure(error ?: "Unknown error") }
+            }
+            override fun onSetFailure(error: String?) {}
+        }, constraints)
+    }
+
+    /**
+     * Create SDP Offer with IceRestart flag enabled for reconnection.
+     */
+    fun restartIce(onSuccess: (SessionDescription) -> Unit, onFailure: (String) -> Unit) {
+        val constraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+            if (isVideoCall) {
+                mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
+            }
+            mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
+        }
+
+        peerConnection?.createOffer(object : SdpObserver {
+            override fun onCreateSuccess(desc: SessionDescription?) {
+                if (desc != null) {
+                    peerConnection?.setLocalDescription(object : SdpObserver {
+                        override fun onCreateSuccess(p0: SessionDescription?) {}
+                        override fun onSetSuccess() {
+                            Log.d(TAG, "[CallId: $currentCallId] Local ICE restart SDP offer set successfully")
+                            scope.launch { onSuccess(desc) }
+                        }
+                        override fun onCreateFailure(p0: String?) {}
+                        override fun onSetFailure(error: String?) {
+                            Log.e(TAG, "[CallId: $currentCallId] Failed to set local ICE restart offer: $error")
+                            scope.launch { onFailure(error ?: "Unknown error") }
+                        }
+                    }, desc)
+                }
+            }
+
+            override fun onSetSuccess() {}
+            override fun onCreateFailure(error: String?) {
+                Log.e(TAG, "[CallId: $currentCallId] Failed to create ICE restart offer: $error")
                 scope.launch { onFailure(error ?: "Unknown error") }
             }
             override fun onSetFailure(error: String?) {}
@@ -350,10 +370,10 @@ class WebRtcEngine(private val context: Context) {
         synchronized(pendingRemoteIceCandidates) {
             pendingRemoteIceCandidates.clear()
         }
-        synchronized(addedIceCandidateKeys) {
-            addedIceCandidateKeys.clear()
+        synchronized(successfullyAddedCandidateKeys) {
+            successfullyAddedCandidateKeys.clear()
         }
-        Log.d(TAG, "[ICE] Pending candidate queue and deduplication keys reset")
+        Log.d(TAG, "[CallId: $currentCallId] [ICE] Pending candidate queue and deduplication keys reset")
     }
 
     /**
@@ -363,56 +383,132 @@ class WebRtcEngine(private val context: Context) {
         peerConnection?.setRemoteDescription(object : SdpObserver {
             override fun onCreateSuccess(p0: SessionDescription?) {}
             override fun onSetSuccess() {
-                Log.d(TAG, "Remote description set successfully (${sdp.type})")
-                
-                // Flush pending ICE candidates
-                synchronized(pendingRemoteIceCandidates) {
-                    val total = pendingRemoteIceCandidates.size
-                    var addedCount = 0
-                    for (candidate in pendingRemoteIceCandidates) {
-                        Log.d(TAG, "[ICE] Flushed queued candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
-                        val added = peerConnection?.addIceCandidate(candidate) ?: false
-                        if (added) addedCount++
-                    }
-                    Log.d(TAG, "[ICE] Flushed $addedCount/$total queued candidate(s) successfully")
-                    pendingRemoteIceCandidates.clear()
-                }
-                
+                Log.d(TAG, "[CallId: $currentCallId] Remote description set successfully (${sdp.type})")
+                flushPendingIceCandidates()
                 scope.launch { onComplete?.invoke(true) }
             }
             override fun onCreateFailure(p0: String?) {}
             override fun onSetFailure(error: String?) {
-                Log.e(TAG, "Failed to set remote description: $error")
+                Log.e(TAG, "[CallId: $currentCallId] Failed to set remote description: $error")
                 scope.launch { onComplete?.invoke(false) }
             }
         }, sdp)
     }
 
     /**
-     * Add Remote ICE Candidate
+     * Flush queued remote ICE candidates after remote description is set.
      */
-    fun addIceCandidate(candidate: IceCandidate) {
+    fun flushPendingIceCandidates() {
+        val pc = peerConnection ?: return
+        if (pc.remoteDescription == null) return
+
+        val candidatesToProcess: List<IceCandidate>
+        synchronized(pendingRemoteIceCandidates) {
+            if (isFlushingIceCandidates) {
+                Log.d(TAG, "[CallId: $currentCallId] [ICE] Flush already in progress, skipping concurrent flush")
+                return
+            }
+            isFlushingIceCandidates = true
+            candidatesToProcess = ArrayList(pendingRemoteIceCandidates)
+            pendingRemoteIceCandidates.clear()
+        }
+
+        var succeededCount = 0
+        var failedCount = 0
+        val retryCandidates = mutableListOf<IceCandidate>()
+
+        for (candidate in candidatesToProcess) {
+            val key = getCandidateKey(candidate)
+            var alreadyAdded = false
+            synchronized(successfullyAddedCandidateKeys) {
+                alreadyAdded = successfullyAddedCandidateKeys.contains(key)
+            }
+            if (alreadyAdded) continue
+
+            Log.d(TAG, "[CallId: $currentCallId] [ICE] Flushing candidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+            val success = try {
+                pc.addIceCandidate(candidate)
+            } catch (e: Exception) {
+                Log.e(TAG, "[CallId: $currentCallId] Exception flushing candidate sdpMid=${candidate.sdpMid}: ${e.message}")
+                false
+            }
+
+            if (success) {
+                succeededCount++
+                synchronized(successfullyAddedCandidateKeys) {
+                    successfullyAddedCandidateKeys.add(key)
+                }
+            } else {
+                failedCount++
+                retryCandidates.add(candidate)
+                Log.w(TAG, "[CallId: $currentCallId] [ICE] addIceCandidate returned false during flush: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+            }
+        }
+
+        synchronized(pendingRemoteIceCandidates) {
+            for (failedCand in retryCandidates) {
+                val failedKey = getCandidateKey(failedCand)
+                if (pendingRemoteIceCandidates.none { getCandidateKey(it) == failedKey }) {
+                    pendingRemoteIceCandidates.add(failedCand)
+                }
+            }
+            isFlushingIceCandidates = false
+        }
+
+        Log.d(TAG, "[CallId: $currentCallId] [ICE] Flushed candidate batch summary: total=${candidatesToProcess.size}, attempted=${candidatesToProcess.size}, successful=$succeededCount, failed=$failedCount, remainingPending=${pendingRemoteIceCandidates.size}")
+    }
+
+    /**
+     * Add Remote ICE Candidate with deduplication and stale call check
+     */
+    fun addIceCandidate(candidate: IceCandidate, callIdCheck: String? = null) {
+        if (callIdCheck != null && currentCallId != null && callIdCheck != currentCallId) {
+            Log.w(TAG, "[CallId: $currentCallId] Ignoring remote ICE candidate for stale callId: $callIdCheck")
+            return
+        }
+        if (candidate.sdp.isBlank()) return
+
         try {
-            val candidateKey = "${candidate.sdpMid}_${candidate.sdpMLineIndex}_${candidate.sdp}"
-            synchronized(addedIceCandidateKeys) {
-                if (addedIceCandidateKeys.contains(candidateKey)) {
-                    Log.d(TAG, "[ICE] Duplicate candidate ignored: ${candidate.sdpMid}")
+            val key = getCandidateKey(candidate)
+            synchronized(successfullyAddedCandidateKeys) {
+                if (successfullyAddedCandidateKeys.contains(key)) {
+                    Log.d(TAG, "[CallId: $currentCallId] [ICE] Duplicate candidate ignored: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
                     return
                 }
-                addedIceCandidateKeys.add(candidateKey)
             }
 
             if (peerConnection?.remoteDescription == null) {
                 synchronized(pendingRemoteIceCandidates) {
-                    Log.d(TAG, "[ICE] Queued candidate before remote description: ${candidate.sdpMid}")
-                    pendingRemoteIceCandidates.add(candidate)
+                    if (pendingRemoteIceCandidates.none { getCandidateKey(it) == key }) {
+                        pendingRemoteIceCandidates.add(candidate)
+                        Log.d(TAG, "[CallId: $currentCallId] [ICE] Queued remote candidate before remote SDP: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+                    }
                 }
             } else {
-                Log.d(TAG, "[ICE] Added candidate immediately: ${candidate.sdpMid}")
-                peerConnection?.addIceCandidate(candidate)
+                Log.d(TAG, "[CallId: $currentCallId] [ICE] Attempting immediate addIceCandidate: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+                val added = try {
+                    peerConnection?.addIceCandidate(candidate) ?: false
+                } catch (e: Exception) {
+                    Log.e(TAG, "[CallId: $currentCallId] Exception adding ICE candidate: ${e.message}")
+                    false
+                }
+
+                if (added) {
+                    synchronized(successfullyAddedCandidateKeys) {
+                        successfullyAddedCandidateKeys.add(key)
+                    }
+                    Log.d(TAG, "[CallId: $currentCallId] [ICE] Candidate successfully added: sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}")
+                } else {
+                    Log.w(TAG, "[CallId: $currentCallId] [ICE] addIceCandidate returned false immediately for sdpMid=${candidate.sdpMid}, index=${candidate.sdpMLineIndex}. Preserving candidate for retry.")
+                    synchronized(pendingRemoteIceCandidates) {
+                        if (pendingRemoteIceCandidates.none { getCandidateKey(it) == key }) {
+                            pendingRemoteIceCandidates.add(candidate)
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding ICE candidate: ${e.message}")
+            Log.e(TAG, "[CallId: $currentCallId] Error processing ICE candidate: ${e.message}")
         }
     }
 
@@ -495,8 +591,8 @@ class WebRtcEngine(private val context: Context) {
             synchronized(pendingRemoteIceCandidates) {
                 pendingRemoteIceCandidates.clear()
             }
-            synchronized(addedIceCandidateKeys) {
-                addedIceCandidateKeys.clear()
+            synchronized(successfullyAddedCandidateKeys) {
+                successfullyAddedCandidateKeys.clear()
             }
 
             peerConnection?.close()

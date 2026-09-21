@@ -49,11 +49,17 @@ object CallManager {
     val remoteVideoTrack: StateFlow<VideoTrack?> = _remoteVideoTrack.asStateFlow()
 
     private var incomingOfferSdp: String? = null
+    private var lastProcessedOfferSdp: String? = null
+    private var lastProcessedAnswerSdp: String? = null
     private var isCallAccepted: Boolean = false
     private var isAnswerCreated: Boolean = false
+    private var isAnswerProcessed: Boolean = false
 
     private var timerJob: Job? = null
     private var ringTimerJob: Job? = null
+    private var reconnectJob: Job? = null
+    private var reconnectAttempts = 0
+    private val MAX_RECONNECT_ATTEMPTS = 2
     private val collectorJobs = mutableListOf<Job>()
     private var logSaverCallback: ((CallLog) -> Unit)? = null
 
@@ -115,6 +121,7 @@ object CallManager {
 
         // 2. WebRTC Engine
         val engine = WebRtcEngine(appContext)
+        engine.currentCallId = callId
         webRtcEngine = engine
 
         collectorJobs += scope.launch {
@@ -142,26 +149,7 @@ object CallManager {
         }
 
         engine.onIceStateChanged = { state ->
-            val current = _activeCall.value
-            if (current != null) {
-                when (state) {
-                    org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
-                    org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
-                        if (current.callState != CallState.CONNECTED) {
-                            transitionToConnected()
-                        }
-                    }
-                    org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
-                        if (current.callState == CallState.CONNECTED) {
-                            _activeCall.value = current.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
-                        }
-                    }
-                    org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
-                        terminateCall(CallState.FAILED, "Connection Failed")
-                    }
-                    else -> {}
-                }
-            }
+            handleIceStateChanged(state, isCaller = true)
         }
 
         engine.setupLocalMedia(isVideo = (callType == CallType.VIDEO), useFrontCamera = true)
@@ -201,26 +189,47 @@ object CallManager {
                 callRepository.listenForAnswer(
                     callId = callId,
                     onAnswerReceived = { answerSdp ->
+                        val current = _activeCall.value
+                        if (current == null || current.callId != callId) {
+                            Log.w(TAG, "Ignoring SDP answer for stale call $callId")
+                            return@listenForAnswer
+                        }
+                        if (isAnswerProcessed || answerSdp == lastProcessedAnswerSdp) {
+                            Log.d(TAG, "Answer already processed for call $callId, ignoring duplicate answer snapshot")
+                            return@listenForAnswer
+                        }
+                        isAnswerProcessed = true
+                        lastProcessedAnswerSdp = answerSdp
                         val answerDesc = SessionDescription(SessionDescription.Type.ANSWER, answerSdp)
                         engine.setRemoteDescription(answerDesc) { success ->
                             if (!success) {
-                                terminateCall(CallState.FAILED, "Failed to connect")
+                                terminateCall(callId, CallState.FAILED, "Failed to connect")
                             }
                         }
                     },
                     onStatusChanged = { status ->
-                        if (status == "ENDED" || status == "DECLINED") {
-                            onRemoteEnded(status)
+                        val current = _activeCall.value
+                        if (current != null && current.callId == callId) {
+                            if (status == "ENDED" || status == "DECLINED" || status == "CANCELLED" || status == "TIMEOUT") {
+                                onRemoteEnded(callId, status)
+                            }
+                        } else {
+                            Log.w(TAG, "Ignoring status change ($status) for stale call $callId")
                         }
                     }
                 )
 
                 // Listen for Remote ICE candidates
                 callRepository.listenForRemoteIceCandidates(callId, isCaller = true) { candidate ->
-                    engine.addIceCandidate(candidate)
+                    val current = _activeCall.value
+                    if (current == null || current.callId != callId) {
+                        Log.w(TAG, "Ignoring remote ICE candidate for stale call $callId")
+                        return@listenForRemoteIceCandidates
+                    }
+                    engine.addIceCandidate(candidate, callIdCheck = callId)
                 }
             } else {
-                terminateCall(CallState.FAILED, "Failed to start call session")
+                terminateCall(callId, CallState.FAILED, "Failed to start call session")
             }
         }
         
@@ -301,9 +310,14 @@ object CallManager {
 
         // Listen for document changes (e.g., Offer SDP arrival or caller cancellation)
         callRepository.listenToCallDocument(callId) { snapshot ->
+            val current = _activeCall.value
+            if (current == null || current.callId != callId) {
+                Log.w(TAG, "Ignoring call document snapshot for stale call $callId")
+                return@listenToCallDocument
+            }
             val status = snapshot.getString("status") ?: ""
             if (status == "ENDED" || status == "DECLINED" || status == "CANCELLED" || status == "TIMEOUT") {
-                onRemoteEnded(status)
+                onRemoteEnded(callId, status)
                 return@listenToCallDocument
             }
 
@@ -314,7 +328,7 @@ object CallManager {
             if (!offerSdp.isNullOrBlank()) {
                 incomingOfferSdp = offerSdp
                 Log.d(TAG, "Incoming Offer SDP received for call $callId")
-                if (isCallAccepted && !isAnswerCreated) {
+                if (isCallAccepted && offerSdp != lastProcessedOfferSdp) {
                     Log.d(TAG, "Call was already accepted by user! Processing Offer and generating Answer now.")
                     processOfferAndSendAnswer(callId, offerSdp)
                 }
@@ -344,6 +358,7 @@ object CallManager {
 
         // 2. WebRTC Engine
         val engine = WebRtcEngine(appContext)
+        engine.currentCallId = callId
         webRtcEngine = engine
 
         collectorJobs += scope.launch {
@@ -371,26 +386,7 @@ object CallManager {
         }
 
         engine.onIceStateChanged = { state ->
-            val activeSession = _activeCall.value
-            if (activeSession != null) {
-                when (state) {
-                    org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
-                    org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
-                        if (activeSession.callState != CallState.CONNECTED) {
-                            transitionToConnected()
-                        }
-                    }
-                    org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
-                        if (activeSession.callState == CallState.CONNECTED) {
-                            _activeCall.value = activeSession.copy(callState = CallState.RECONNECTING, peerStatus = "Reconnecting...")
-                        }
-                    }
-                    org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
-                        terminateCall(CallState.FAILED, "Connection Failed")
-                    }
-                    else -> {}
-                }
-            }
+            handleIceStateChanged(state, isCaller = false)
         }
 
         engine.setupLocalMedia(isVideo = (current.callType == CallType.VIDEO), useFrontCamera = true)
@@ -398,12 +394,17 @@ object CallManager {
 
         // Listen for remote ICE candidates from Caller
         callRepository.listenForRemoteIceCandidates(callId, isCaller = false) { candidate ->
-            engine.addIceCandidate(candidate)
+            val active = _activeCall.value
+            if (active == null || active.callId != callId) {
+                Log.w(TAG, "Ignoring remote ICE candidate for stale call $callId")
+                return@listenForRemoteIceCandidates
+            }
+            engine.addIceCandidate(candidate, callIdCheck = callId)
         }
 
         // 3. Set Remote Offer & Create Answer if Offer SDP is available
         val offerSdp = incomingOfferSdp
-        if (!offerSdp.isNullOrBlank()) {
+        if (!offerSdp.isNullOrBlank() && offerSdp != lastProcessedOfferSdp) {
             Log.d(TAG, "Offer SDP is already available. Processing Offer and generating Answer now.")
             processOfferAndSendAnswer(callId, offerSdp)
         } else {
@@ -411,15 +412,102 @@ object CallManager {
         }
     }
 
+    private fun handleIceStateChanged(state: org.webrtc.PeerConnection.IceConnectionState, isCaller: Boolean) {
+        val current = _activeCall.value ?: return
+        Log.d(TAG, "[CallId: ${current.callId}] ICE connection state changed: $state")
+
+        when (state) {
+            org.webrtc.PeerConnection.IceConnectionState.CONNECTED,
+            org.webrtc.PeerConnection.IceConnectionState.COMPLETED -> {
+                reconnectJob?.cancel()
+                reconnectJob = null
+                reconnectAttempts = 0
+                if (current.callState != CallState.CONNECTED) {
+                    transitionToConnected()
+                }
+            }
+            org.webrtc.PeerConnection.IceConnectionState.DISCONNECTED -> {
+                if (current.callState == CallState.CONNECTED || current.callState == CallState.RECONNECTING) {
+                    _activeCall.value = current.copy(
+                        callState = CallState.RECONNECTING,
+                        peerStatus = "Reconnecting..."
+                    )
+                    scheduleReconnectionRecovery(isCaller)
+                }
+            }
+            org.webrtc.PeerConnection.IceConnectionState.FAILED -> {
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++
+                    Log.w(TAG, "[CallId: ${current.callId}] ICE state FAILED. Reconnection attempt $reconnectAttempts of $MAX_RECONNECT_ATTEMPTS...")
+                    _activeCall.value = current.copy(
+                        callState = CallState.RECONNECTING,
+                        peerStatus = "Reconnecting (Attempt $reconnectAttempts)..."
+                    )
+                    if (isCaller) {
+                        webRtcEngine?.restartIce(
+                            onSuccess = { offer ->
+                                scope.launch { callRepository.sendOffer(current.callId, offer.description) }
+                            },
+                            onFailure = { err ->
+                                Log.e(TAG, "ICE restart failed: $err")
+                            }
+                        )
+                    }
+                    scheduleReconnectionRecovery(isCaller)
+                } else {
+                    Log.e(TAG, "[CallId: ${current.callId}] ICE state FAILED and max retries exhausted.")
+                    terminateCall(CallState.FAILED, "Connection Lost")
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun scheduleReconnectionRecovery(isCaller: Boolean) {
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = scope.launch {
+            // Wait 5s: if still disconnected, trigger ICE restart on caller
+            delay(5000L)
+            val session = _activeCall.value
+            if (session != null && session.callState == CallState.RECONNECTING) {
+                if (isCaller) {
+                    Log.d(TAG, "[CallId: ${session.callId}] Triggering ICE restart after 5s disconnection...")
+                    webRtcEngine?.restartIce(
+                        onSuccess = { offer ->
+                            scope.launch { callRepository.sendOffer(session.callId, offer.description) }
+                        },
+                        onFailure = { err ->
+                            Log.e(TAG, "ICE restart failed: $err")
+                        }
+                    )
+                }
+            }
+
+            // Total 15s window before declaring recovery failure
+            delay(10000L)
+            val finalSession = _activeCall.value
+            if (finalSession != null && finalSession.callState == CallState.RECONNECTING) {
+                Log.e(TAG, "[CallId: ${finalSession.callId}] Reconnection recovery timed out after 15s")
+                terminateCall(CallState.FAILED, "Connection Lost")
+            }
+        }
+    }
+
     private fun processOfferAndSendAnswer(callId: String, offerSdp: String) {
+        val current = _activeCall.value
+        if (current == null || current.callId != callId) {
+            Log.w(TAG, "Cannot process offer for stale call $callId")
+            return
+        }
         val engine = webRtcEngine ?: run {
             Log.e(TAG, "Cannot process offer: webRtcEngine is null")
             return
         }
-        if (isAnswerCreated) {
-            Log.w(TAG, "Answer already created/processed for call $callId, skipping duplicate processing")
+        if (offerSdp == lastProcessedOfferSdp) {
+            Log.w(TAG, "Offer already processed for call $callId, skipping duplicate processing")
             return
         }
+        lastProcessedOfferSdp = offerSdp
         isAnswerCreated = true
 
         val offerDesc = SessionDescription(SessionDescription.Type.OFFER, offerSdp)
@@ -434,12 +522,12 @@ object CallManager {
                     },
                     onFailure = { error ->
                         Log.e(TAG, "Failed to create answer: $error")
-                        terminateCall(CallState.FAILED, "Failed to create answer")
+                        terminateCall(callId, CallState.FAILED, "Failed to create answer")
                     }
                 )
             } else {
                 Log.e(TAG, "Failed to set remote description")
-                terminateCall(CallState.FAILED, "Failed to set remote description")
+                terminateCall(callId, CallState.FAILED, "Failed to set remote description")
             }
         }
     }
@@ -455,7 +543,15 @@ object CallManager {
     }
 
     private fun terminateCall(reason: CallState, statusText: String, overrideDirection: String? = null) {
+        terminateCall(null, reason, statusText, overrideDirection)
+    }
+
+    private fun terminateCall(targetCallId: String?, reason: CallState, statusText: String, overrideDirection: String? = null) {
         val current = _activeCall.value ?: return
+        if (targetCallId != null && current.callId != targetCallId) {
+            Log.w(TAG, "Ignoring terminateCall for stale call $targetCallId (active call is ${current.callId})")
+            return
+        }
         val finalDirection = overrideDirection ?: if (current.isIncoming) {
             if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "INCOMING"
         } else {
@@ -521,7 +617,7 @@ object CallManager {
             val current = _activeCall.value ?: return@launch
             if (current.callState == CallState.OUTGOING_RINGING || current.callState == CallState.INCOMING_RINGING) {
                 // Timeout logic
-                terminateCall(CallState.TIMEOUT, "No Answer", if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "OUTGOING")
+                terminateCall(current.callId, CallState.TIMEOUT, "No Answer", if (current.callState == CallState.INCOMING_RINGING) "MISSED" else "OUTGOING")
             }
         }
     }
@@ -530,7 +626,8 @@ object CallManager {
      * Decline incoming call
      */
     fun declineCall() {
-        terminateCall(CallState.REJECTED, "Call Declined", "MISSED")
+        val current = _activeCall.value ?: return
+        terminateCall(current.callId, CallState.REJECTED, "Call Declined", "MISSED")
     }
 
     /**
@@ -539,13 +636,18 @@ object CallManager {
     fun endCall() {
         val current = _activeCall.value ?: return
         if (current.callState == CallState.OUTGOING_RINGING) {
-            terminateCall(CallState.CANCELLED, "Call Cancelled")
+            terminateCall(current.callId, CallState.CANCELLED, "Call Cancelled")
         } else {
-            terminateCall(CallState.ENDED, "Call Ended")
+            terminateCall(current.callId, CallState.ENDED, "Call Ended")
         }
     }
 
-    private fun onRemoteEnded(status: String) {
+    private fun onRemoteEnded(targetCallId: String, status: String) {
+        val current = _activeCall.value
+        if (current == null || current.callId != targetCallId) {
+            Log.w(TAG, "Ignoring onRemoteEnded for stale call $targetCallId")
+            return
+        }
         val reason = when(status) {
             "DECLINED" -> CallState.REJECTED
             "CANCELLED" -> CallState.CANCELLED
@@ -560,7 +662,7 @@ object CallManager {
             "FAILED" -> "Call Failed"
             else -> "Call Ended"
         }
-        terminateCall(reason, label)
+        terminateCall(targetCallId, reason, label)
     }
 
     private fun saveCallLog(log: CallLog) {
@@ -658,9 +760,15 @@ object CallManager {
         timerJob = null
         ringTimerJob?.cancel()
         ringTimerJob = null
+        reconnectJob?.cancel()
+        reconnectJob = null
+        reconnectAttempts = 0
         incomingOfferSdp = null
+        lastProcessedOfferSdp = null
+        lastProcessedAnswerSdp = null
         isCallAccepted = false
         isAnswerCreated = false
+        isAnswerProcessed = false
         
         try {
             val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager

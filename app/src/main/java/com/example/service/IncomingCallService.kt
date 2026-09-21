@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
@@ -151,7 +152,32 @@ class IncomingCallService : Service() {
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Decline", declinePendingIntent)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            var types = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            if (callType == "VIDEO") {
+                types = types or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    types = types or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+                    startForeground(NOTIFICATION_ID, notification, types)
+                } catch (e: Exception) {
+                    Log.w("IncomingCallService", "Failed startForeground with PHONE_CALL type, retrying with MIC/CAMERA: ${e.message}")
+                    try {
+                        val fallbackTypes = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                                if (callType == "VIDEO") android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0
+                        startForeground(NOTIFICATION_ID, notification, fallbackTypes)
+                    } catch (e2: Exception) {
+                        Log.w("IncomingCallService", "Failed startForeground with fallback types, trying default: ${e2.message}")
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                }
+            } else {
+                startForeground(NOTIFICATION_ID, notification, types)
+            }
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
         startVibrating()
     }
 
