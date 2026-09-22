@@ -1021,6 +1021,22 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
     val currentChatRecipientUid = MutableStateFlow("")
     val currentChatId = MutableStateFlow("")
     
+    val inAppNotification = MutableStateFlow<InAppNotification?>(null)
+
+    fun showInAppBanner(title: String, message: String, avatarUrl: String = "", targetScreen: PlenxoScreen = PlenxoScreen.HOME, extraData: Map<String, String> = emptyMap()) {
+        inAppNotification.value = InAppNotification(
+            title = title,
+            message = message,
+            avatarUrl = avatarUrl,
+            targetScreen = targetScreen,
+            extraData = extraData
+        )
+    }
+
+    fun dismissInAppBanner() {
+        inAppNotification.value = null
+    }
+    
     // Firestore listeners
     private var chatsListener: kotlinx.coroutines.Job? = null
     private var messagesListener: kotlinx.coroutines.Job? = null
@@ -4079,6 +4095,32 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                             )
                         } else null
                     }
+                    val prevRequests = _pendingFriendRequests.value
+                    val newRequests = requestList.filter { req -> prevRequests.none { it.requestId == req.requestId } }
+                    if (newRequests.isNotEmpty() && prevRequests.isNotEmpty()) {
+                        val latestReq = newRequests.first()
+                        val isBackground = try {
+                            androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState < androidx.lifecycle.Lifecycle.State.STARTED
+                        } catch (e: Exception) { false }
+                        
+                        if (!isBackground) {
+                            showInAppBanner(
+                                title = "Friend Request",
+                                message = "${latestReq.senderName} sent you a friend request",
+                                avatarUrl = latestReq.senderPhotoUrl,
+                                targetScreen = PlenxoScreen.CHAT_REQUESTS
+                            )
+                        } else {
+                            com.example.util.NotificationHelper.showNotification(
+                                context = getApplication(),
+                                title = "Friend Request",
+                                message = "${latestReq.senderName} sent you a friend request",
+                                targetScreen = "CHAT_REQUESTS",
+                                extraData = mapOf("type" to "friend_request", "requestId" to latestReq.requestId)
+                            )
+                        }
+                    }
+
                     _pendingFriendRequests.value = requestList
                     Log.d("Plenxo", "Fetched pending friend requests: ${requestList.size}")
 
@@ -4762,14 +4804,24 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                             androidx.lifecycle.ProcessLifecycleOwner.get().lifecycle.currentState < androidx.lifecycle.Lifecycle.State.STARTED
                         } catch (e: Exception) { false }
                         
-                        if (isBackground || currentScreen.value != PlenxoScreen.CHAT_DETAIL || currentChatId.value != resolvedChatId) {
-                            com.example.util.NotificationHelper.showNotification(
-                                context = getApplication(),
-                                title = currentChatRecipientName.value.ifEmpty { "New message" },
-                                message = newestMsg.messageText,
-                                targetScreen = "CHAT_DETAIL",
-                                extraData = mapOf("chatId" to resolvedChatId, "senderId" to newestMsg.senderId)
-                            )
+                        if (currentScreen.value != PlenxoScreen.CHAT_DETAIL || currentChatId.value != resolvedChatId) {
+                            val senderTitle = currentChatRecipientName.value.ifEmpty { "New Message" }
+                            if (!isBackground) {
+                                showInAppBanner(
+                                    title = senderTitle,
+                                    message = newestMsg.messageText,
+                                    targetScreen = PlenxoScreen.CHAT_DETAIL,
+                                    extraData = mapOf("chatId" to resolvedChatId, "senderId" to newestMsg.senderId)
+                                )
+                            } else {
+                                com.example.util.NotificationHelper.showNotification(
+                                    context = getApplication(),
+                                    title = senderTitle,
+                                    message = newestMsg.messageText,
+                                    targetScreen = "CHAT_DETAIL",
+                                    extraData = mapOf("chatId" to resolvedChatId, "senderId" to newestMsg.senderId)
+                                )
+                            }
                         }
                     }
                 }
@@ -6137,3 +6189,12 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 }
+
+data class InAppNotification(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val title: String,
+    val message: String,
+    val avatarUrl: String = "",
+    val targetScreen: PlenxoScreen = PlenxoScreen.HOME,
+    val extraData: Map<String, String> = emptyMap()
+)

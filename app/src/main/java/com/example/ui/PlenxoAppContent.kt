@@ -599,6 +599,104 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
             }
         }
 
+        // In-App Push Notification Banner Overlay
+        val inAppNotif by viewModel.inAppNotification.collectAsState()
+        LaunchedEffect(inAppNotif) {
+            if (inAppNotif != null) {
+                kotlinx.coroutines.delay(4000)
+                viewModel.dismissInAppBanner()
+            }
+        }
+
+        AnimatedVisibility(
+            visible = inAppNotif != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 12.dp, start = 12.dp, end = 12.dp)
+        ) {
+            inAppNotif?.let { notif ->
+                Card(
+                    onClick = {
+                        viewModel.dismissInAppBanner()
+                        if (notif.targetScreen == PlenxoScreen.CHAT_DETAIL && notif.extraData.containsKey("chatId")) {
+                            val chatId = notif.extraData["chatId"] ?: ""
+                            val senderId = notif.extraData["senderId"] ?: ""
+                            viewModel.openChatRoom(
+                                com.example.model.ChatRoom(
+                                    chatId = chatId,
+                                    participantUids = listOf(viewModel.currentUserId, senderId)
+                                )
+                            )
+                        } else {
+                            viewModel.navigateToScreen(notif.targetScreen)
+                        }
+                    },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF161B22).copy(alpha = 0.95f)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.7f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF1F6FEB)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = notif.title.trim().take(1).ifEmpty { "P" }.uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = notif.title,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = notif.message,
+                                color = Color.LightGray,
+                                fontSize = 12.sp,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { viewModel.dismissInAppBanner() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss notification",
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Stage 1 Audio/Video Calling UI Overlays with complete separation
         activeCallSession?.let { session ->
             if (session.callState == CallState.INCOMING_RINGING) {
