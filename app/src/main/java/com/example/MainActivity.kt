@@ -140,6 +140,25 @@ class MainActivity : BaseActivity() {
                         }
                     }
 
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.RequestPermission()
+                        ) { isGranted ->
+                            Log.d("MainActivity", "Notification permission result: $isGranted")
+                        }
+                        val currentUid = viewModel.currentUserId
+                        LaunchedEffect(currentUid) {
+                            if (currentUid.isNotEmpty() &&
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        }
+                    }
+
                     LaunchedEffect(activeIntent) {
                         val currIntent = activeIntent ?: return@LaunchedEffect
                         try {

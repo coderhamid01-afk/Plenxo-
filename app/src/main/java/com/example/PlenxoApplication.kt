@@ -71,9 +71,9 @@ class PlenxoApplication : Application(), Application.ActivityLifecycleCallbacks 
         }
         android.util.Log.d("PlenxoInit", "PlenxoApplication initialized successfully")
         try {
-            com.example.service.AppNotificationService.createNotificationChannel(this)
+            com.example.util.NotificationHelper.setupAllNotificationChannels(this)
         } catch (t: Throwable) {
-            android.util.Log.e("APP_INIT_ERROR", "Failed to create notification channel safely", t)
+            android.util.Log.e("APP_INIT_ERROR", "Failed to create notification channels safely", t)
         }
         try {
             scheduleDatabaseCompaction()

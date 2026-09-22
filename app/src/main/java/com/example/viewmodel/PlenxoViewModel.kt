@@ -1990,6 +1990,7 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
             val uid = currentUserId
             if (!uid.isNullOrEmpty()) {
                 try {
+                    com.example.service.PlenxoFCMService.unregisterFcmTokenOnLogout(uid)
                     val fcmClearMap = mapOf(
                         "fcmToken" to com.google.firebase.firestore.FieldValue.delete(),
                         "fcm_token" to com.google.firebase.firestore.FieldValue.delete()

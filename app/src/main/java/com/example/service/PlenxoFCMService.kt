@@ -202,9 +202,11 @@ open class PlenxoFCMService : FirebaseMessagingService() {
         val soundName = NotificationHelper.getSelectedSoundName(context)
         val soundUri = NotificationHelper.getSoundUri(context, soundName)
 
+        val iconRes = com.example.R.drawable.ic_stat_plenxo_notification
+
         // 8. Assemble complete Messaging Style notification with Grouping
         val notificationBuilder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(iconRes)
             .setStyle(messagingStyle)
             .setContentTitle(senderName)
             .setContentText(body)
@@ -339,14 +341,49 @@ open class PlenxoFCMService : FirebaseMessagingService() {
 
             try {
                 val firestore = FirebaseFirestore.getInstance()
+                
+                // 1. Multi-device token subcollection record
+                val tokenDoc = mapOf(
+                    "token" to token,
+                    "platform" to "android",
+                    "deviceModel" to (android.os.Build.MODEL ?: "Android"),
+                    "updatedAt" to System.currentTimeMillis()
+                )
+                firestore.collection("users")
+                    .document(uid)
+                    .collection("notificationTokens")
+                    .document(token)
+                    .set(tokenDoc, SetOptions.merge())
+
+                // 2. Primary document record for backward compatibility
                 val firestoreMap = mapOf(
                     "fcmToken" to token,
                     "fcm_token" to token,
                     "updatedAt" to System.currentTimeMillis()
                 )
                 firestore.collection("users").document(uid).set(firestoreMap, SetOptions.merge())
+                Log.d(TAG, "Successfully registered FCM token for user $uid on multi-device architecture")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to update FCM token in Firestore: ${e.message}")
+            }
+        }
+
+        fun unregisterFcmTokenOnLogout(uid: String) {
+            if (uid.isBlank()) return
+            try {
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful && !task.result.isNullOrBlank()) {
+                        val currentToken = task.result
+                        val firestore = FirebaseFirestore.getInstance()
+                        firestore.collection("users")
+                            .document(uid)
+                            .collection("notificationTokens")
+                            .document(currentToken)
+                            .delete()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error removing FCM token document on logout: ${e.message}")
             }
         }
     }

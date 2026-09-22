@@ -19,8 +19,70 @@ object NotificationHelper {
     private const val PREFS_NAME = "app_settings"
     private const val KEY_SELECTED_SOUND = "notification_ringtone_sp"
     
-    const val BASE_CHANNEL_ID = "chat_messages_channel"
-    private const val CHANNEL_NAME = "Real-time Chat Alerts"
+    const val BASE_CHANNEL_ID = "plenxo_messages"
+    const val CHANNEL_FRIEND_REQUESTS = "plenxo_friend_requests"
+    const val CHANNEL_CALLS = "incoming_call_channel"
+    const val CHANNEL_MISSED_CALLS = "plenxo_missed_calls"
+    const val CHANNEL_GENERAL = "plenxo_general"
+    private const val CHANNEL_NAME = "Plenxo Chat Messages"
+
+    /**
+     * Set up all required notification channels for the app.
+     */
+    fun setupAllNotificationChannels(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val ringtone = getSelectedSoundName(context)
+            recreateNotificationChannel(context, ringtone)
+
+            val friendChannel = NotificationChannel(
+                CHANNEL_FRIEND_REQUESTS,
+                "Friend Requests",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for incoming friend and chat requests"
+                enableLights(true)
+                lightColor = android.graphics.Color.BLUE
+                enableVibration(true)
+            }
+
+            val callChannel = NotificationChannel(
+                CHANNEL_CALLS,
+                "Incoming Calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for incoming WebRTC voice and video calls"
+                enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                enableVibration(true)
+            }
+
+            val missedCallChannel = NotificationChannel(
+                CHANNEL_MISSED_CALLS,
+                "Missed Calls",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for missed voice and video calls"
+                enableLights(true)
+                lightColor = android.graphics.Color.RED
+                enableVibration(true)
+            }
+
+            val generalChannel = NotificationChannel(
+                CHANNEL_GENERAL,
+                "General Alerts",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "General updates and system alerts"
+            }
+
+            notificationManager.createNotificationChannels(
+                listOf(friendChannel, callChannel, missedCallChannel, generalChannel)
+            )
+            Log.d(TAG, "Initialized all Plenxo notification channels successfully")
+        }
+    }
 
     /**
      * Gets the selected notification sound name from SharedPreferences.
@@ -136,8 +198,10 @@ object NotificationHelper {
         val soundName = getSelectedSoundName(context)
         val soundUri = getSoundUri(context, soundName)
 
+        val iconRes = com.example.R.drawable.ic_stat_plenxo_notification
+
         return NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(iconRes)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -154,21 +218,7 @@ object NotificationHelper {
         targetScreen: String,
         extraData: Map<String, String>
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val chatChannel = NotificationChannel(
-                "chat_messages",
-                "Chat Messages",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            val friendChannel = NotificationChannel(
-                "friend_requests",
-                "Friend Requests",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            notificationManager.createNotificationChannel(chatChannel)
-            notificationManager.createNotificationChannel(friendChannel)
-        }
+        setupAllNotificationChannels(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -178,24 +228,25 @@ object NotificationHelper {
 
         val pendingIntent = PendingIntent.getActivity(
             context,
-            (title + message).hashCode(),
+            (title + message + targetScreen).hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val channelId = if (targetScreen == "CHAT_REQUESTS") "friend_requests" else "chat_messages"
+        val channelId = if (targetScreen == "CHAT_REQUESTS") CHANNEL_FRIEND_REQUESTS else getDynamicChannelId(context)
+        val iconRes = com.example.R.drawable.ic_stat_plenxo_notification
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(iconRes)
             .setContentTitle(title)
             .setContentText(message)
-            .setPriority(if (channelId == "chat_messages") NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(if (targetScreen == "CHAT_REQUESTS") NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
 
         NotificationManagerCompat.from(context).apply {
             try {
-                notify((title + message).hashCode(), builder.build())
+                notify((title + message + targetScreen).hashCode(), builder.build())
             } catch (e: SecurityException) {
                 Log.e(TAG, "Notification permission not granted", e)
             }
@@ -203,22 +254,7 @@ object NotificationHelper {
     }
 
     fun showMissedCallNotification(context: Context, callerName: String, callType: String) {
-        val channelId = "missed_calls"
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Missed Calls",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifications for missed calls"
-                enableLights(true)
-                lightColor = android.graphics.Color.RED
-                enableVibration(true)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
+        setupAllNotificationChannels(context)
 
         val typeText = if (callType.equals("VIDEO", ignoreCase = true)) "Video" else "Voice"
         
@@ -228,13 +264,14 @@ object NotificationHelper {
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            "missed_call".hashCode(),
+            ("missed_call_" + callerName + System.currentTimeMillis()).hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_missed_call)
+        val iconRes = com.example.R.drawable.ic_stat_plenxo_notification
+        val builder = NotificationCompat.Builder(context, CHANNEL_MISSED_CALLS)
+            .setSmallIcon(iconRes)
             .setContentTitle("Missed $typeText Call")
             .setContentText("Missed call from $callerName")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
