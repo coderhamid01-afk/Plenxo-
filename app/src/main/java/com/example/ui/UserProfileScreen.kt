@@ -92,9 +92,9 @@ fun UserProfileScreen(
     val callPermissionController = rememberCallPermissionController()
 
     if (showQRBottomSheet) {
-        val displayPlenxoId = userProfile?.plenxoId?.ifEmpty { userProfile?.userCode } ?: userProfile?.userCode ?: userId
+        val displayPlenxoId = userProfile?.plenxoId?.ifEmpty { userProfile?.userCode } ?: "PX-${userId.take(6).uppercase()}"
         com.example.ui.components.ProfileQRBottomSheet(
-            displayName = userProfile?.displayName ?: "EagleHost",
+            displayName = userProfile?.displayName ?: "Plenxo User",
             plenxoId = displayPlenxoId,
             avatarUrl = userProfile?.profilePicUrl,
             onDismissRequest = { showQRBottomSheet = false }
@@ -145,8 +145,18 @@ fun UserProfileScreen(
     // Fetch User B details and observe connection status
     LaunchedEffect(userId, currentUid) {
         if (userId.isNotBlank()) {
+            userProfile = null
+            bioText = ""
+            bioVisibility = "PUBLIC"
+            genderText = ""
+            rawDobText = ""
+            dobTimestampVal = null
+            countryText = ""
+            joinedDateText = ""
+            isLoading = true
+
             val cached = usersCache[userId]
-            if (cached != null) {
+            if (cached != null && cached.uid == userId) {
                 userProfile = cached
             }
             try {
@@ -160,13 +170,9 @@ fun UserProfileScreen(
                     val dName = doc.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
                         ?: doc.getString("name")?.takeIf { it.isNotBlank() && it != "User" }
                         ?: doc.getString("display_name")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("current_name")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("fullName")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("full_name")?.takeIf { it.isNotBlank() && it != "User" }
                         ?: doc.getString("username")?.takeIf { it.isNotBlank() && it != "User" }
                         ?: userProfile?.displayName?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: com.example.util.SessionManager.getLocalDisplayName(context).takeIf { it.isNotBlank() && it != "User" }
-                        ?: "EagleHost"
+                        ?: "Plenxo User"
 
                     val pPic = doc.getString("profilePicUrl")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("avatar_url")?.takeIf { it.isNotBlank() }
@@ -177,7 +183,7 @@ fun UserProfileScreen(
                     val pId = doc.getString("plenxoId")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("userCode")?.takeIf { it.isNotBlank() }
                         ?: userProfile?.plenxoId
-                        ?: "PX-644369"
+                        ?: "PX-${userId.take(6).uppercase()}"
 
                     val ring = doc.getString("profileRingId")
                         ?: doc.getString("selectedRingId")
@@ -186,29 +192,28 @@ fun UserProfileScreen(
 
                     val bio = doc.getString("bio")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("statusMessage")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("bioStatus")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("about")?.takeIf { it.isNotBlank() }
-                        ?: com.example.util.SessionManager.getLocalBio(context)
+                        ?: "No bio provided."
 
                     val bVis = doc.getString("bioVisibility") ?: "PUBLIC"
-                    val gender = doc.getString("gender") ?: "Male"
+                    val gender = doc.getString("gender")?.takeIf { it.isNotBlank() } ?: "Not specified"
                     val dob = doc.getString("date_of_birth")
                         ?: doc.getString("dateOfBirth")
                         ?: doc.getString("dob")
                         ?: userProfile?.dob
-                        ?: "12 Jan 2003"
+                        ?: "Not specified"
 
                     val timestamp = doc.getLong("dobTimestamp") ?: doc.getLong("birthDateTimestamp")
-                    val country = doc.getString("country") ?: doc.getString("location") ?: "Pakistan"
+                    val country = doc.getString("country") ?: doc.getString("location") ?: "Not specified"
                     
                     val joined = doc.getString("joinedDate") ?: doc.getString("joined") ?: run {
                         val ts = doc.getTimestamp("createdAt") ?: doc.getTimestamp("created_at")
                         if (ts != null) {
                             SimpleDateFormat("dd MMM yyyy", Locale.US).format(ts.toDate())
-                        } else "15 Sep 2025"
+                        } else "Member"
                     }
 
-                    bioText = bio.ifBlank { "Hey there! I'm EagleHost. Passionate about technology, Minecraft, and building amazing things. Always online, always ready to connect!" }
+                    bioText = bio
                     bioVisibility = bVis
                     genderText = gender
                     rawDobText = dob
@@ -225,14 +230,11 @@ fun UserProfileScreen(
                         dob = dob
                     )
                 } else {
-                    // Default fallback values matching reference UI
-                    if (bioText.isBlank()) {
-                        bioText = "Hey there! I'm EagleHost. Passionate about technology, Minecraft, and building amazing things. Always online, always ready to connect!"
-                    }
-                    if (genderText.isBlank()) genderText = "Male"
-                    if (rawDobText.isBlank()) rawDobText = "12 Jan 2003"
-                    if (countryText.isBlank()) countryText = "Pakistan"
-                    if (joinedDateText.isBlank()) joinedDateText = "15 Sep 2025"
+                    bioText = "No bio provided."
+                    genderText = "Not specified"
+                    rawDobText = "Not specified"
+                    countryText = "Not specified"
+                    joinedDateText = "Member"
                 }
 
                 // Check connection / friend status
@@ -271,7 +273,7 @@ fun UserProfileScreen(
                     }
                 }
             } catch (e: Exception) {
-                // Keep default or cached values gracefully
+                // Keep default state gracefully
             } finally {
                 isLoading = false
             }
@@ -386,7 +388,7 @@ fun UserProfileScreen(
                                 leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null, tint = primaryColor) },
                                 onClick = {
                                     showOptionsMenu = false
-                                    val idToCopy = userProfile?.plenxoId?.ifBlank { "PX-644369" } ?: "PX-644369"
+                                    val idToCopy = userProfile?.plenxoId?.ifBlank { "PX-${userId.take(6).uppercase()}" } ?: "PX-${userId.take(6).uppercase()}"
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                                     val clip = android.content.ClipData.newPlainText("Plenxo ID", idToCopy)
                                     clipboard?.setPrimaryClip(clip)
@@ -466,7 +468,7 @@ fun UserProfileScreen(
 
                 // Username Typography
                 Text(
-                    text = userProfile?.displayName?.ifBlank { "EagleHost" } ?: "EagleHost",
+                    text = userProfile?.displayName?.ifBlank { "Plenxo User" } ?: "Plenxo User",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
@@ -476,7 +478,7 @@ fun UserProfileScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Plenxo ID Shield Badge
-                val rawPxId = userProfile?.plenxoId?.ifBlank { userProfile?.userCode.orEmpty() } ?: "PX-644369"
+                val rawPxId = userProfile?.plenxoId?.ifBlank { userProfile?.userCode.orEmpty() }?.ifBlank { "PX-${userId.take(6).uppercase()}" } ?: "PX-${userId.take(6).uppercase()}"
                 val displayPxId = if (rawPxId.startsWith("PX-")) rawPxId else "PX-${rawPxId.take(6)}"
 
                 Surface(
@@ -551,7 +553,7 @@ fun UserProfileScreen(
                             testTag = "user_profile_call_action_button",
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                val targetName = userProfile?.displayName ?: "EagleHost"
+                                val targetName = userProfile?.displayName?.ifBlank { "Plenxo User" } ?: "Plenxo User"
                                 val targetPic = userProfile?.profilePicUrl ?: ""
                                 val targetPlenxoId = displayPxId
                                 callPermissionController.startVoiceCallWithPermission {
@@ -574,7 +576,7 @@ fun UserProfileScreen(
                             testTag = "user_profile_video_call_action_button",
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                val targetName = userProfile?.displayName ?: "EagleHost"
+                                val targetName = userProfile?.displayName?.ifBlank { "Plenxo User" } ?: "Plenxo User"
                                 val targetPic = userProfile?.profilePicUrl ?: ""
                                 val targetPlenxoId = displayPxId
                                 callPermissionController.startVideoCallWithPermission {
@@ -795,7 +797,7 @@ fun UserProfileScreen(
                         PersonalDetailRow(
                             icon = Icons.Default.Person,
                             label = "Full Name",
-                            value = userProfile?.displayName?.ifBlank { "EagleHost" } ?: "EagleHost"
+                            value = userProfile?.displayName?.ifBlank { "Plenxo User" } ?: "Plenxo User"
                         )
 
                         HorizontalDivider(color = dividerColor, thickness = 1.dp)

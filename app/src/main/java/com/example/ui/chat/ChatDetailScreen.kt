@@ -231,10 +231,10 @@ fun ChatDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                         .clip(RoundedCornerShape(28.dp))
-                        .background(Color(0xFF0A101D).copy(alpha = 0.8f))
-                        .border(1.dp, Color(0xFF00B0FF).copy(alpha = 0.5f), RoundedCornerShape(28.dp))
+                        .background(Color(0xFF121926).copy(alpha = 0.95f))
+                        .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(28.dp))
                 ) {
                     Row(
                         modifier = Modifier
@@ -446,6 +446,43 @@ fun ChatDetailScreen(
                         .padding(paddingValues),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp)
                 ) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                HorizontalDivider(
+                                    modifier = Modifier.width(50.dp),
+                                    color = Color(0xFF1E293B)
+                                )
+                                Surface(
+                                    color = Color(0xFF121926),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                                    modifier = Modifier.padding(horizontal = 10.dp)
+                                ) {
+                                    Text(
+                                        text = "Today",
+                                        fontSize = 11.sp,
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                                HorizontalDivider(
+                                    modifier = Modifier.width(50.dp),
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                        }
+                    }
+
                     items(
                         items = messages,
                         key = { it.messageId.ifBlank { "${it.senderId}_${it.timestamp ?: 0L}" } }
@@ -657,14 +694,14 @@ private fun ChatInputBar(
                 spotColor = Color.Black.copy(alpha = 0.45f)
             )
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFF0A101D).copy(alpha = 0.8f))
+            .background(Color(0xFF131B26))
             .border(
                 width = 1.dp,
-                color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                color = if (isFocused) Color(0xFF0084FF) else Color(0xFF1E293B),
                 shape = RoundedCornerShape(28.dp)
             )
             .animateContentSize(animationSpec = tween(180))
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -683,9 +720,6 @@ private fun ChatInputBar(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Leading area: either the attach button + text field, or the recording
-                // telemetry row. Both variants are height-matched so swapping between them
-                // never distorts the surrounding row.
                 AnimatedContent(
                     targetState = isRecording,
                     modifier = Modifier.weight(1f),
@@ -709,20 +743,18 @@ private fun ChatInputBar(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
-                                onClick = onAttachClick,
+                                onClick = { /* Toggle Emoji Picker */ },
                                 modifier = Modifier
-                                    .size(38.dp)
-                                    .testTag("attach_media_button")
+                                    .size(36.dp)
+                                    .testTag("emoji_picker_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.AttachFile,
-                                    contentDescription = "Attach Media",
+                                    imageVector = Icons.Default.SentimentSatisfied,
+                                    contentDescription = "Emoji",
                                     tint = Color(0xFF94A3B8),
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(4.dp))
 
                             OutlinedTextField(
                                 value = inputText,
@@ -754,20 +786,61 @@ private fun ChatInputBar(
                                     unfocusedPlaceholderColor = Color(0xFF94A3B8),
                                     focusedBorderColor = Color.Transparent,
                                     unfocusedBorderColor = Color.Transparent,
-                                    cursorColor = Color(0xFF22C55E)
+                                    cursorColor = Color(0xFF0084FF)
                                 ),
                                 shape = RoundedCornerShape(24.dp),
                                 maxLines = 4
                             )
+
+                            IconButton(
+                                onClick = onAttachClick,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("attach_media_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AttachFile,
+                                    contentDescription = "Attach Media",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = onAttachClick,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("gallery_media_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "Gallery",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { beginRecording() },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("voice_recording_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Voice Recording",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // Fixed-size slot: centered and clipped to exactly 44.dp
                 Box(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -787,22 +860,22 @@ private fun ChatInputBar(
                                 icon = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
                                 testTag = "send_message_button",
-                                containerColor = Color(0xFF22C55E),
+                                containerColor = Color(0xFF0084FF),
                                 onClick = onSendText
                             )
                             InputAction.SEND_VOICE -> RoundActionButton(
                                 icon = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send voice message",
                                 testTag = "send_voice_button",
-                                containerColor = Color(0xFF22C55E),
+                                containerColor = Color(0xFF0084FF),
                                 onClick = { stopAndSendRecording() }
                             )
                             InputAction.RECORD -> RoundActionButton(
-                                icon = Icons.Default.Mic,
-                                contentDescription = "Record Voice Note",
-                                testTag = "mic_record_button",
-                                containerColor = Color(0xFF22C55E),
-                                onClick = { beginRecording() }
+                                icon = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                testTag = "send_message_button",
+                                containerColor = Color(0xFF0084FF),
+                                onClick = onSendText
                             )
                         }
                     }
