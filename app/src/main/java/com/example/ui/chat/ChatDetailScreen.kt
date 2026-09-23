@@ -1035,14 +1035,6 @@ private fun RecordingTelemetryRow(
     amplitude: Int,
     onCancel: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "rec_pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "pulse"
-    )
-
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = FieldSurface,
@@ -1059,10 +1051,9 @@ private fun RecordingTelemetryRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(10.dp)
-                    .scale(pulseScale)
+                    .size(8.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFEF4444))
+                    .background(Color(0xFF0084FF))
             )
 
             val minutes = elapsedSeconds / 60
