@@ -10,6 +10,14 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import com.example.util.VideoAutoDownloader
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlinx.coroutines.isActive
+import kotlin.math.sin
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -645,7 +653,7 @@ private fun ChatInputBar(
         if (isRecording) {
             while (true) {
                 recorderState.pollAmplitude()
-                delay(100)
+                delay(40)
             }
         }
     }
@@ -942,6 +950,86 @@ private fun ReplyPreviewBanner(
 }
 
 @Composable
+private fun ContinuousWaveformView(
+    amplitude: Int,
+    modifier: Modifier = Modifier,
+    waveColor: Color = Color(0xFF0084FF)
+) {
+    val sampleCount = 60
+    val samples = remember { FloatArray(sampleCount) }
+    var smoothedAmp by remember { mutableFloatStateOf(0f) }
+    var phase by remember { mutableFloatStateOf(0f) }
+
+    // React to microphone amplitude updates
+    LaunchedEffect(amplitude) {
+        val normalized = (amplitude / 12000f).coerceIn(0f, 1f)
+        smoothedAmp += (normalized - smoothedAmp) * 0.35f
+        
+        System.arraycopy(samples, 1, samples, 0, sampleCount - 1)
+        samples[sampleCount - 1] = smoothedAmp
+    }
+
+    // Continuous smooth animation loop driving horizontal wave flow and silent decay
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            withFrameNanos { _ ->
+                phase += 0.08f
+                smoothedAmp *= 0.95f
+            }
+        }
+    }
+
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        val cy = height / 2f
+        val maxHeight = (cy * 0.85f).coerceAtLeast(1f)
+
+        if (width <= 0f || height <= 0f) return@Canvas
+
+        val dx = width / (sampleCount - 1)
+
+        val points = Array(sampleCount) { i ->
+            val amp = samples[i]
+            val sineWave = sin(i * 0.65f + phase) * 0.75f + sin(i * 1.3f - phase * 0.5f) * 0.25f
+            val y = cy - (amp * maxHeight * sineWave)
+            Offset(i * dx, y.coerceIn(2f, height - 2f))
+        }
+
+        val path = Path().apply {
+            moveTo(points[0].x, points[0].y)
+            for (i in 0 until sampleCount - 1) {
+                val p0 = points[maxOf(i - 1, 0)]
+                val p1 = points[i]
+                val p2 = points[i + 1]
+                val p3 = points[minOf(i + 2, sampleCount - 1)]
+
+                val cx1 = p1.x + (p2.x - p0.x) / 6f
+                val cy1 = p1.y + (p2.y - p0.y) / 6f
+                val cx2 = p2.x - (p3.x - p1.x) / 6f
+                val cy2 = p2.y - (p3.y - p1.y) / 6f
+
+                cubicTo(cx1, cy1, cx2, cy2, p2.x, p2.y)
+            }
+        }
+
+        // Soft background wave path for visual depth
+        drawPath(
+            path = path,
+            color = waveColor.copy(alpha = 0.22f),
+            style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+
+        // Main clean continuous wave line
+        drawPath(
+            path = path,
+            color = waveColor,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
+@Composable
 private fun RecordingTelemetryRow(
     elapsedSeconds: Int,
     amplitude: Int,
@@ -986,25 +1074,13 @@ private fun RecordingTelemetryRow(
                 fontSize = 14.sp
             )
 
-            Row(
+            ContinuousWaveformView(
+                amplitude = amplitude,
                 modifier = Modifier
                     .weight(1f)
-                    .height(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(8) { idx ->
-                    val heightFraction = remember(amplitude, idx) {
-                        ((amplitude / 3000f) + (idx * 0.1f)).coerceIn(0.2f, 1.0f)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(heightFraction)
-                            .background(Color(0xFF58A6FF), RoundedCornerShape(2.dp))
-                    )
-                }
-            }
+                    .height(32.dp),
+                waveColor = Color(0xFF0084FF)
+            )
 
             IconButton(
                 onClick = onCancel,
