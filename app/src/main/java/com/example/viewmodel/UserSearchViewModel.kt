@@ -46,12 +46,6 @@ class UserSearchViewModel @JvmOverloads constructor(
     private val _searchError = MutableStateFlow<String?>(null)
     val searchError: StateFlow<String?> = _searchError.asStateFlow()
 
-    private val _allUsers = MutableStateFlow<List<Map<String, Any>>>(emptyList())
-    val allUsers: StateFlow<List<Map<String, Any>>> = _allUsers.asStateFlow()
-
-    private val _allUserModels = MutableStateFlow<List<UserModel>>(emptyList())
-    val allUserModels: StateFlow<List<UserModel>> = _allUserModels.asStateFlow()
-
     /**
      * Normalizes user input into canonical format: PX-123456 (PX- followed by exactly 6 digits).
      * Accepts variations like: PX-123456, px-123456, 123456, @PX-123456, #PX-123456.
@@ -79,16 +73,6 @@ class UserSearchViewModel @JvmOverloads constructor(
         }
 
         return null
-    }
-
-    /**
-     * No-op: Automatic user enumeration has been completely removed for privacy compliance.
-     * Users are no longer auto-loaded or cached client-side.
-     */
-    fun loadInitialUsers() {
-        // Intentionally empty. No initial user loading allowed.
-        _searchResults.value = emptyList()
-        _userModelResults.value = emptyList()
     }
 
     /**

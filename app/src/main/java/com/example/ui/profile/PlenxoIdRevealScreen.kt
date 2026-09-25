@@ -48,16 +48,11 @@ fun PlenxoIdRevealScreen(
 
     LaunchedEffect(Unit) {
         authViewModel.isSavingProfileAndId.value = false
-        if (authViewModel.plenxoId.value.isBlank()) {
-            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            if (uid.isNotBlank()) {
-                val code = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
-                authViewModel.plenxoId.value = "PX-$code"
-            }
-        }
+        // Authority belongs to server. No local deterministic fallback generation.
     }
 
-    val displayId = plenxoIdState.ifBlank { "PX-000000" }
+    val displayId = plenxoIdState.ifBlank { "PX-......" }
+    val isIdReady = plenxoIdState.isNotBlank() && plenxoIdState.startsWith("PX-") && plenxoIdState.length == 9
 
     val copyToClipboard = {
         try {
@@ -275,7 +270,7 @@ fun PlenxoIdRevealScreen(
                         onClick = {
                             authViewModel.saveFinalProfileAndReveal(onSuccess = onDone)
                         },
-                        enabled = !isSaving,
+                        enabled = !isSaving && isIdReady,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)

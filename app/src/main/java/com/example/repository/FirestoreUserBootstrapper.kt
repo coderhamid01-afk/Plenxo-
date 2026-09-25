@@ -39,14 +39,12 @@ object FirestoreUserBootstrapper {
     private const val TAG_PROFILE = "PLENXO_PROFILE"
 
     /**
-     * Resolves an authoritative, permanent Plenxo ID in format PX-XXXXXX (6 digits: 100000..999999).
-     * Strictly adheres to ONE Firebase Auth UID = ONE Firestore users/{uid} = ONE permanent Plenxo ID.
+     * Resolves an existing Plenxo ID from the provided strings.
+     * Does NOT generate new IDs locally; IDs must be assigned by the server.
      */
-    suspend fun resolveAuthoritativePlenxoId(
-        uid: String,
+    fun resolveAuthoritativePlenxoId(
         existingPxId: String? = null,
-        requestedPxId: String? = null,
-        firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+        requestedPxId: String? = null
     ): String {
         // 1. If an existing PX ID is already present on the document, PRESERVE IT ALWAYS
         val cleanExisting = existingPxId?.trim()?.removePrefix("@")?.removePrefix("#")
@@ -74,51 +72,7 @@ object FirestoreUserBootstrapper {
             }
         }
 
-        // 3. Deterministic 6-digit generation from UID hash code
-        // Guarantees that the same UID always produces the exact same PX-ID even if interrupted/offline
-        val deterministicCode = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
-        val deterministicPxId = "PX-$deterministicCode"
-
-        // 4. Quick uniqueness check with short timeout on /user_lookup/{pxId} direct GET
-        return try {
-            val isTaken = withTimeoutOrNull(2500L) {
-                try {
-                    val lookupSnap = firestore.collection("user_lookup")
-                        .document(deterministicPxId)
-                        .get()
-                        .await()
-                    if (lookupSnap.exists()) {
-                        val existingUid = lookupSnap.getString("uid") ?: lookupSnap.id
-                        existingUid != uid
-                    } else {
-                        false
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Uniqueness check skipped due to network/error: ${e.message}")
-                    false
-                }
-            } ?: false
-
-            if (isTaken) {
-                // Generate a random unique 6-digit code
-                var candidate = deterministicPxId
-                for (i in 1..5) {
-                    val randomCode = Random.nextInt(100000, 1000000).toString()
-                    candidate = "PX-$randomCode"
-                    val candSnap = firestore.collection("user_lookup")
-                        .document(candidate)
-                        .get()
-                        .await()
-                    if (!candSnap.exists()) break
-                }
-                candidate
-            } else {
-                deterministicPxId
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Using deterministic Plenxo ID fallback ($deterministicPxId): ${e.message}")
-            deterministicPxId
-        }
+        return ""
     }
 
     /**
@@ -182,12 +136,10 @@ object FirestoreUserBootstrapper {
         val now = System.currentTimeMillis()
         val createdAt = existingSnap?.getLong("createdAt") ?: now
 
-        // Resolve Plenxo ID using authoritative single source
+        // Resolve Plenxo ID: No local generation anymore.
         val finalPxId = resolveAuthoritativePlenxoId(
-            uid = uid,
             existingPxId = existingPxId,
-            requestedPxId = plenxoId,
-            firestore = firestore
+            requestedPxId = plenxoId
         )
         val numericCode = finalPxId.removePrefix("PX-")
 
@@ -259,21 +211,8 @@ object FirestoreUserBootstrapper {
             Log.d(TAG, "FIRESTORE USER CREATE SUCCESS: UID=$uid, Plenxo ID=$finalPxId")
             Log.d(TAG_PROFILE, "Profile bootstrapped successfully: UID=$uid, Path=users/$uid, Plenxo ID=$finalPxId")
 
-            // Write minimal, privacy-safe discovery lookup record to /user_lookup/{finalPxId}
-            try {
-                val safeLookup = hashMapOf<String, Any>(
-                    "plenxoId" to finalPxId,
-                    "uid" to uid,
-                    "displayName" to resolvedName,
-                    "profilePicUrl" to resolvedPic,
-                    "bio" to resolvedBio,
-                    "profileRingId" to (existingSnap?.getString("profileRingId") ?: "none"),
-                    "updatedAt" to now
-                )
-                firestore.collection("user_lookup").document(finalPxId).set(safeLookup, SetOptions.merge()).await()
-            } catch (lkEx: Exception) {
-                Log.w(TAG, "user_lookup bootstrap entry note: ${lkEx.message}")
-            }
+            // IMPORTANT: DIRECT CLIENT WRITES TO user_lookup REMOVED.
+            // Authority belongs strictly to server-side Cloud Functions.
         } catch (fsEx: FirebaseFirestoreException) {
             val codeStr = fsEx.code.name
             val errorDetails = """

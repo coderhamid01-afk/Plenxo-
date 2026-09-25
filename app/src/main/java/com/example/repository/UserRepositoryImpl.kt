@@ -133,36 +133,8 @@ class UserRepositoryImpl : UserRepository {
                 .set(mutableUpdates, SetOptions.merge())
                 .await()
 
-            // Also maintain user_lookup entry client-side for immediate discovery sync
-            try {
-                val existingPxId = (mutableUpdates["plenxoId"] as? String)
-                    ?: (getUserData(uid)?.get("plenxoId") as? String)
-                    ?: ""
-                val cleanPxId = existingPxId.trim().removePrefix("@").removePrefix("#")
-                val formattedPxId = if (cleanPxId.startsWith("PX-", ignoreCase = true)) {
-                    "PX-${cleanPxId.substring(3).trim()}"
-                } else if (cleanPxId.length == 6 && cleanPxId.all { it.isDigit() }) {
-                    "PX-$cleanPxId"
-                } else {
-                    cleanPxId
-                }
-
-                if (formattedPxId.isNotBlank()) {
-                    val lookupMap = mutableMapOf<String, Any>(
-                        "plenxoId" to formattedPxId,
-                        "uid" to uid,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                    (mutableUpdates["displayName"] ?: mutableUpdates["name"])?.let { lookupMap["displayName"] = it }
-                    (mutableUpdates["profilePicUrl"] ?: mutableUpdates["photoUrl"])?.let { lookupMap["profilePicUrl"] = it }
-                    (mutableUpdates["bio"] ?: mutableUpdates["statusMessage"])?.let { lookupMap["bio"] = it }
-                    (mutableUpdates["profileRingId"] ?: mutableUpdates["selectedRingId"])?.let { lookupMap["profileRingId"] = it }
-
-                    firestore.collection("user_lookup").document(formattedPxId).set(lookupMap, SetOptions.merge()).await()
-                }
-            } catch (lkEx: Exception) {
-                Log.w("UserRepositoryImpl", "user_lookup update note for $uid: ${lkEx.message}")
-            }
+            // IMPORTANT: DIRECT CLIENT WRITES TO user_lookup REMOVED.
+            // Authority belongs strictly to server-side Cloud Functions (onUserProfileWritten).
 
             Log.d("UserRepositoryImpl", "Updated profile for user $uid")
             true

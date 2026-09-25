@@ -116,39 +116,13 @@ fun generateUniquePlenxoId(): String {
 /**
  * Single authoritative primitive that generates a candidate 6-digit Plenxo ID (PX-XXXXXX)
  * and verifies its uniqueness in Firestore. Called strictly via [getOrCreatePermanentPlenxoId].
+ * DEPRECATED: This logic is now handled server-side via Cloud Functions.
  */
 suspend fun generateUniqueNumericPlenxoId(
     firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ): String {
-    val fallbackCode = Random.nextInt(100000, 1000000).toString()
-    val fallbackPxId = "PX-$fallbackCode"
-    return try {
-        kotlinx.coroutines.withTimeoutOrNull(5000L) {
-            var attempts = 0
-            while (attempts < 5) {
-                val numericCode = Random.nextInt(100000, 1000000).toString()
-                val candidatePxId = "PX-$numericCode"
-
-                try {
-                    val lookupDoc = firestore.collection("user_lookup")
-                        .document(candidatePxId)
-                        .get()
-                        .await()
-
-                    if (!lookupDoc.exists()) {
-                        return@withTimeoutOrNull candidatePxId
-                    }
-                } catch (e: Exception) {
-                    Log.e("UserModels", "Error verifying Plenxo ID uniqueness: ${e.message}")
-                    return@withTimeoutOrNull candidatePxId
-                }
-                attempts++
-            }
-            fallbackPxId
-        } ?: fallbackPxId
-    } catch (e: Exception) {
-        fallbackPxId
-    }
+    // Authority moved to server-side allocatePlenxoId Cloud Function.
+    return ""
 }
 
 /**
@@ -183,9 +157,7 @@ suspend fun getOrCreatePermanentPlenxoId(
     val existingPxId = existingSnap?.getString("plenxoId") ?: existingSnap?.getString("userCode")
 
     val finalPxId = com.example.repository.FirestoreUserBootstrapper.resolveAuthoritativePlenxoId(
-        uid = uid,
-        existingPxId = existingPxId,
-        firestore = firestore
+        existingPxId = existingPxId
     )
 
     try {

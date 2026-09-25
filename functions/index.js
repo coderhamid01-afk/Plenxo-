@@ -282,34 +282,51 @@ exports.onCallCreated = onDocumentCreated("calls/{callId}", async (event) => {
 
 /**
  * 5. Firestore Trigger: User Profile Written (Maintains /user_lookup/{plenxoId} exact index)
+ * Strictly verifies that the client is not hijacking or forging a Plenxo ID.
  */
 exports.onUserProfileWritten = onDocumentWritten("users/{userId}", async (event) => {
   const uid = event.params.userId;
   const beforeData = event.data?.before?.data();
   const afterData = event.data?.after?.data();
 
-  // If deleted, remove user_lookup entry
+  // If deleted, remove user_lookup entry ONLY if it strictly belonged to this user
   if (!afterData) {
     if (beforeData && beforeData.plenxoId) {
       const oldPid = String(beforeData.plenxoId).trim();
-      if (oldPid) {
+      const lookupSnap = await db.collection("user_lookup").doc(oldPid).get();
+      if (lookupSnap.exists && lookupSnap.data().uid === uid) {
         await db.collection("user_lookup").doc(oldPid).delete();
       }
     }
     return;
   }
 
-  const pId = String(afterData.plenxoId || afterData.userCode || "").trim();
+  const pId = String(afterData.plenxoId || "").trim();
   if (!pId) return;
 
   const formattedPxId = pId.startsWith("PX-") ? pId : (pId.length === 6 && /^\d+$/.test(pId) ? `PX-${pId}` : pId);
 
-  // If Plenxo ID changed, clean up old lookup entry
-  if (beforeData && beforeData.plenxoId && beforeData.plenxoId !== formattedPxId) {
-    const oldPid = String(beforeData.plenxoId).trim();
-    if (oldPid) {
-      await db.collection("user_lookup").doc(oldPid).delete();
+  // AUTHENTICATION CHECK: Does this Plenxo ID actually belong to this user?
+  // We check the user_lookup collection which is the server-side source of truth for ID ownership.
+  const lookupRef = db.collection("user_lookup").doc(formattedPxId);
+  const lookupSnap = await lookupRef.get();
+
+  if (lookupSnap.exists) {
+    if (lookupSnap.data().uid !== uid) {
+      console.error(`SECURITY ALERT: User ${uid} attempted to use Plenxo ID ${formattedPxId} owned by ${lookupSnap.data().uid}`);
+      // Revert the plenxoId on the user document to prevent hijacking
+      await db.collection("users").doc(uid).update({
+        plenxoId: beforeData ? (beforeData.plenxoId || "") : ""
+      });
+      return;
     }
+  } else {
+    // If it doesn't exist in lookup, but is set in user doc, it might be a legacy or first-time assignment.
+    // However, in the new architecture, allocatePlenxoId handles the first-time mapping.
+    // If it's missing from lookup, we only allow creating it if the user doesn't already have another ID mapping.
+    // This prevents users from "claiming" IDs by just writing to their profile.
+    console.warn(`Plenxo ID ${formattedPxId} for user ${uid} not found in authoritative lookup. Skipping automatic mapping.`);
+    return;
   }
 
   // Create or update minimal, privacy-safe lookup document
@@ -323,7 +340,7 @@ exports.onUserProfileWritten = onDocumentWritten("users/{userId}", async (event)
     updatedAt: Date.now()
   };
 
-  await db.collection("user_lookup").doc(formattedPxId).set(safeLookup, { merge: true });
+  await lookupRef.set(safeLookup, { merge: true });
 });
 
 /**
@@ -341,7 +358,11 @@ exports.allocatePlenxoId = onCall(async (request) => {
   if (userSnap.exists) {
     const existingPid = userSnap.data().plenxoId;
     if (existingPid && typeof existingPid === "string" && existingPid.startsWith("PX-")) {
-      return { success: true, plenxoId: existingPid };
+      // Verify lookup exists
+      const lSnap = await db.collection("user_lookup").doc(existingPid).get();
+      if (lSnap.exists && lSnap.data().uid === uid) {
+        return { success: true, plenxoId: existingPid };
+      }
     }
   }
 
@@ -393,8 +414,14 @@ exports.allocatePlenxoId = onCall(async (request) => {
 
 /**
  * 7. Server-Side Backfill for Existing Users to /user_lookup/{plenxoId}
+ * Requires ADMIN_SECRET header for security.
  */
 exports.backfillUserLookups = onRequest(async (req, res) => {
+  const secret = req.headers['x-plenxo-admin-secret'];
+  if (secret !== 'PLENXO_SECURE_BACKFILL_2024') {
+    return res.status(403).send({ success: false, error: "Unauthorized access" });
+  }
+
   try {
     const usersSnap = await db.collection("users").get();
     let count = 0;
