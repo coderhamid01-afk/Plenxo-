@@ -126,7 +126,8 @@ class UserSearchViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Direct explicit search strictly by permanent Plenxo ID (`plenxoId`) using limit(1).
+     * Direct document lookup strictly by permanent Plenxo ID on `/user_lookup/{normalized}`.
+     * Performs a single document fetch (get) on the exact document ID with zero collection queries.
      */
     fun executeSearch() {
         val rawInput = _searchQuery.value.trim().removePrefix("@").removePrefix("#").trim()
@@ -152,91 +153,85 @@ class UserSearchViewModel @JvmOverloads constructor(
             try {
                 val currentAuthUid = auth.currentUser?.uid ?: ""
 
-                // Self search prevention
-                val currentUserData = if (currentAuthUid.isNotBlank()) userRepository.getUserData(currentAuthUid) else null
-                val myPlenxoId = ((currentUserData?.get("plenxoId") as? String) ?: "").trim()
-                val myNormalized = if (myPlenxoId.isNotBlank()) normalizePlenxoId(myPlenxoId) else null
-
-                if (myNormalized != null && myNormalized.equals(normalized, ignoreCase = true)) {
-                    _searchError.value = "You cannot add yourself."
-                    _searchResults.value = emptyList()
-                    _userModelResults.value = emptyList()
-                    _isSearching.value = false
-                    return@launch
+                // 1. Direct document fetch on /user_lookup/{normalized}
+                val lookupDocRef = firestore.collection("user_lookup").document(normalized)
+                val snapshot = try {
+                    com.example.util.getDocumentServerFirst(lookupDocRef, timeoutMs = 5000L)
+                } catch (e: Exception) {
+                    Log.w(TAG_SEARCH, "Direct lookup read error for $normalized: ${e.message}")
+                    null
                 }
 
-                // Query Firestore strictly by plenxoId field with limit(1)
-                val searchKeys = listOf(normalized, normalized.lowercase())
-                val list = mutableListOf<Map<String, Any>>()
-                val modelList = mutableListOf<UserModel>()
+                if (snapshot != null && snapshot.exists()) {
+                    val uid = snapshot.getString("uid") ?: snapshot.id
+                    if (currentAuthUid.isNotBlank() && uid == currentAuthUid) {
+                        _searchError.value = "You cannot add yourself."
+                        _searchResults.value = emptyList()
+                        _userModelResults.value = emptyList()
+                        _isSearching.value = false
+                        return@launch
+                    }
 
-                for (key in searchKeys) {
-                    val query = firestore.collection("users")
-                        .whereEqualTo("plenxoId", key)
-                        .limit(1)
+                    val data = snapshot.data?.toMutableMap() ?: mutableMapOf()
+                    data["docId"] = uid
+                    data["uid"] = uid
 
-                    val snapshot = try {
-                        getQuerySnapshotServerFirst(query, timeoutMs = 5000L)
-                    } catch (e: Exception) {
-                        Log.w("UserSearchViewModel", "Search query failed for key $key: ${e.message}")
-                        null
-                    } ?: continue
+                    val dName = snapshot.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
+                        ?: "Plenxo User"
+                    data["displayName"] = dName
+                    data["name"] = dName
 
-                    if (!snapshot.isEmpty) {
-                        snapshot.documents.forEach { doc ->
-                            val uid = doc.id
-                            if (currentAuthUid.isNotBlank() && uid == currentAuthUid) {
-                                _searchError.value = "You cannot add yourself."
-                                return@forEach
-                            }
+                    val pId = snapshot.getString("plenxoId") ?: normalized
+                    data["plenxoId"] = pId
 
-                            val data = doc.data?.toMutableMap() ?: mutableMapOf()
-                            data["docId"] = uid
-                            data["uid"] = (data["uid"] as? String) ?: uid
+                    val bio = snapshot.getString("bio") ?: ""
+                    data["bio"] = bio
+                    data["statusMessage"] = bio
 
-                            val dName = doc.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
-                                ?: doc.getString("name")?.takeIf { it.isNotBlank() && it != "User" }
-                                ?: doc.getString("display_name")?.takeIf { it.isNotBlank() && it != "User" }
-                                ?: doc.getString("fullName")?.takeIf { it.isNotBlank() && it != "User" }
-                                ?: doc.getString("displayName")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("name")?.takeIf { it.isNotBlank() }
-                                ?: "Plenxo User"
-                            data["displayName"] = dName
-                            data["name"] = dName
+                    val pic = snapshot.getString("profilePicUrl") ?: ""
+                    data["profilePicUrl"] = pic
 
-                            val pId = doc.getString("plenxoId")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("userCode")?.takeIf { it.isNotBlank() }
-                                ?: normalized
-                            data["plenxoId"] = pId
+                    val ringId = snapshot.getString("profileRingId") ?: "none"
+                    data["profileRingId"] = ringId
 
-                            val bio = doc.getString("bio")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("statusMessage")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("bioStatus")?.takeIf { it.isNotBlank() }
-                                ?: ""
-                            data["bio"] = bio
-                            data["statusMessage"] = bio
+                    _searchResults.value = listOf(data)
+                    _userModelResults.value = listOf(
+                        UserModel(
+                            uid = uid,
+                            displayName = dName,
+                            name = dName,
+                            email = "",
+                            bio = bio,
+                            statusMessage = bio,
+                            profilePicUrl = pic,
+                            plenxoId = pId,
+                            profileRingId = ringId
+                        )
+                    )
+                    Log.d(TAG_SEARCH, "Operation: EXACT_DOC_LOOKUP, doc: user_lookup/$normalized, status: SUCCESS")
+                } else {
+                    // Fallback to repository getUserByPlenxoId
+                    val repoUser = userRepository.getUserByPlenxoId(normalized)
+                    if (repoUser != null) {
+                        val uid = (repoUser["uid"] as? String) ?: (repoUser["docId"] as? String) ?: ""
+                        if (currentAuthUid.isNotBlank() && uid == currentAuthUid) {
+                            _searchError.value = "You cannot add yourself."
+                            _searchResults.value = emptyList()
+                            _userModelResults.value = emptyList()
+                        } else {
+                            val dName = (repoUser["displayName"] as? String) ?: "Plenxo User"
+                            val pId = (repoUser["plenxoId"] as? String) ?: normalized
+                            val pic = (repoUser["profilePicUrl"] as? String) ?: ""
+                            val bio = (repoUser["bio"] as? String) ?: ""
+                            val ringId = (repoUser["profileRingId"] as? String) ?: "none"
 
-                            val pic = doc.getString("profilePicUrl")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("avatar_url")?.takeIf { it.isNotBlank() }
-                                ?: doc.getString("photoUrl")?.takeIf { it.isNotBlank() }
-                                ?: ""
-                            data["profilePicUrl"] = pic
-
-                            val email = doc.getString("email") ?: ""
-                            data["email"] = email
-
-                            val ringId = doc.getString("profileRingId")
-                                ?: doc.getString("selectedRingId")
-                                ?: "none"
-                            data["profileRingId"] = ringId
-
-                            list.add(data)
-                            modelList.add(
+                            _searchResults.value = listOf(repoUser)
+                            _userModelResults.value = listOf(
                                 UserModel(
                                     uid = uid,
                                     displayName = dName,
                                     name = dName,
-                                    email = email,
+                                    email = "",
                                     bio = bio,
                                     statusMessage = bio,
                                     profilePicUrl = pic,
@@ -245,32 +240,13 @@ class UserSearchViewModel @JvmOverloads constructor(
                                 )
                             )
                         }
-                        if (list.isNotEmpty()) break
+                    } else {
+                        _searchResults.value = emptyList()
+                        _userModelResults.value = emptyList()
                     }
                 }
-
-                if (list.isEmpty() && _searchError.value == null) {
-                    val repoResults = userRepository.searchUsersByPlenxoId(normalized)
-                    if (repoResults.isNotEmpty()) {
-                        repoResults.forEach { r ->
-                            val uid = (r["uid"] as? String) ?: (r["docId"] as? String) ?: ""
-                            if (currentAuthUid.isBlank() || uid != currentAuthUid) {
-                                list.add(r)
-                            } else {
-                                _searchError.value = "You cannot add yourself."
-                            }
-                        }
-                    }
-                }
-
-                val distinctResults = list.distinctBy { (it["uid"] as? String) ?: (it["id"] as? String) ?: it.hashCode().toString() }
-                val distinctModels = modelList.distinctBy { it.uid }
-
-                _searchResults.value = distinctResults
-                _userModelResults.value = distinctModels
-                Log.d(TAG_SEARCH, "Operation: SEARCH_BY_PX_ID, query: $normalized, matches: ${distinctResults.size}, status: SUCCESS")
             } catch (e: Exception) {
-                Log.e(TAG_SEARCH, "Operation: SEARCH_BY_PX_ID, query: $normalized, status: FAILURE, error: ${e.message}", e)
+                Log.e(TAG_SEARCH, "Operation: EXACT_DOC_LOOKUP, doc: user_lookup/$normalized, error: ${e.message}", e)
                 _searchError.value = "Search failed: ${e.localizedMessage}"
             } finally {
                 _isSearching.value = false

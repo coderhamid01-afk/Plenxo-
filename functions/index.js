@@ -1,4 +1,4 @@
-const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -277,4 +277,50 @@ exports.onCallCreated = onDocumentCreated("calls/{callId}", async (event) => {
   const body = `${callerName} is calling you...`;
 
   await sendNotificationToUser(receiverUid, dataPayload, title, body);
+});
+
+/**
+ * 5. Firestore Trigger: User Profile Written (Maintains /user_lookup/{plenxoId} exact index)
+ */
+exports.onUserProfileWritten = onDocumentWritten("users/{userId}", async (event) => {
+  const uid = event.params.userId;
+  const beforeData = event.data?.before?.data();
+  const afterData = event.data?.after?.data();
+
+  // If deleted, remove user_lookup entry
+  if (!afterData) {
+    if (beforeData && beforeData.plenxoId) {
+      const oldPid = String(beforeData.plenxoId).trim();
+      if (oldPid) {
+        await db.collection("user_lookup").doc(oldPid).delete();
+      }
+    }
+    return;
+  }
+
+  const pId = String(afterData.plenxoId || afterData.userCode || "").trim();
+  if (!pId) return;
+
+  const formattedPxId = pId.startsWith("PX-") ? pId : (pId.length === 6 && /^\d+$/.test(pId) ? `PX-${pId}` : pId);
+
+  // If Plenxo ID changed, clean up old lookup entry
+  if (beforeData && beforeData.plenxoId && beforeData.plenxoId !== formattedPxId) {
+    const oldPid = String(beforeData.plenxoId).trim();
+    if (oldPid) {
+      await db.collection("user_lookup").doc(oldPid).delete();
+    }
+  }
+
+  // Create or update minimal, privacy-safe lookup document
+  const safeLookup = {
+    plenxoId: formattedPxId,
+    uid: uid,
+    displayName: afterData.displayName || afterData.name || "Plenxo User",
+    profilePicUrl: afterData.profilePicUrl || afterData.photoUrl || "",
+    bio: afterData.bio || afterData.statusMessage || "",
+    profileRingId: afterData.profileRingId || afterData.selectedRingId || "none",
+    updatedAt: Date.now()
+  };
+
+  await db.collection("user_lookup").doc(formattedPxId).set(safeLookup, { merge: true });
 });

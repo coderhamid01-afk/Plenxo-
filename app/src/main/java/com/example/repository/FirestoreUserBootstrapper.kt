@@ -260,6 +260,22 @@ object FirestoreUserBootstrapper {
 
             Log.d(TAG, "FIRESTORE USER CREATE SUCCESS: UID=$uid, Plenxo ID=$finalPxId")
             Log.d(TAG_PROFILE, "Profile bootstrapped successfully: UID=$uid, Path=users/$uid, Plenxo ID=$finalPxId")
+
+            // Write minimal, privacy-safe discovery lookup record to /user_lookup/{finalPxId}
+            try {
+                val safeLookup = hashMapOf<String, Any>(
+                    "plenxoId" to finalPxId,
+                    "uid" to uid,
+                    "displayName" to resolvedName,
+                    "profilePicUrl" to resolvedPic,
+                    "bio" to resolvedBio,
+                    "profileRingId" to (existingSnap?.getString("profileRingId") ?: "none"),
+                    "updatedAt" to now
+                )
+                firestore.collection("user_lookup").document(finalPxId).set(safeLookup, SetOptions.merge()).await()
+            } catch (lkEx: Exception) {
+                Log.w(TAG, "user_lookup bootstrap entry note: ${lkEx.message}")
+            }
         } catch (fsEx: FirebaseFirestoreException) {
             val codeStr = fsEx.code.name
             val errorDetails = """

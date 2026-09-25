@@ -133,6 +133,37 @@ class UserRepositoryImpl : UserRepository {
                 .set(mutableUpdates, SetOptions.merge())
                 .await()
 
+            // Also maintain user_lookup entry client-side for immediate discovery sync
+            try {
+                val existingPxId = (mutableUpdates["plenxoId"] as? String)
+                    ?: (getUserData(uid)?.get("plenxoId") as? String)
+                    ?: ""
+                val cleanPxId = existingPxId.trim().removePrefix("@").removePrefix("#")
+                val formattedPxId = if (cleanPxId.startsWith("PX-", ignoreCase = true)) {
+                    "PX-${cleanPxId.substring(3).trim()}"
+                } else if (cleanPxId.length == 6 && cleanPxId.all { it.isDigit() }) {
+                    "PX-$cleanPxId"
+                } else {
+                    cleanPxId
+                }
+
+                if (formattedPxId.isNotBlank()) {
+                    val lookupMap = mutableMapOf<String, Any>(
+                        "plenxoId" to formattedPxId,
+                        "uid" to uid,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                    (mutableUpdates["displayName"] ?: mutableUpdates["name"])?.let { lookupMap["displayName"] = it }
+                    (mutableUpdates["profilePicUrl"] ?: mutableUpdates["photoUrl"])?.let { lookupMap["profilePicUrl"] = it }
+                    (mutableUpdates["bio"] ?: mutableUpdates["statusMessage"])?.let { lookupMap["bio"] = it }
+                    (mutableUpdates["profileRingId"] ?: mutableUpdates["selectedRingId"])?.let { lookupMap["profileRingId"] = it }
+
+                    firestore.collection("user_lookup").document(formattedPxId).set(lookupMap, SetOptions.merge()).await()
+                }
+            } catch (lkEx: Exception) {
+                Log.w("UserRepositoryImpl", "user_lookup update note for $uid: ${lkEx.message}")
+            }
+
             Log.d("UserRepositoryImpl", "Updated profile for user $uid")
             true
         } catch (e: Exception) {
@@ -210,124 +241,49 @@ class UserRepositoryImpl : UserRepository {
     }
 
     /**
-     * STRICT PLENXO ID SEARCH ONLY:
-     * Queries Firestore 'users' collection strictly using whereEqualTo("plenxoId", cleanedQuery) with resilient server-first read.
+     * STRICT DIRECT DOCUMENT LOOKUP ONLY ON /user_lookup/{canonicalPxId}.
+     * Completely eliminates collection queries, list enumeration, and private field exposure.
      */
-    override suspend fun searchUsersByPlenxoId(plenxoIdQuery: String): List<Map<String, Any>> {
-        val cleanInput = plenxoIdQuery.trim().removePrefix("@").lowercase()
-        if (cleanInput.isBlank()) return emptyList()
+    override suspend fun getUserByPlenxoId(plenxoId: String): Map<String, Any>? {
+        val cleaned = plenxoId.trim().removePrefix("@").removePrefix("#").trim()
+        if (cleaned.isBlank()) return null
+
+        val canonicalPxId = if (cleaned.startsWith("PX-", ignoreCase = true)) {
+            "PX-${cleaned.substring(3).trim()}"
+        } else if (cleaned.length == 6 && cleaned.all { it.isDigit() }) {
+            "PX-$cleaned"
+        } else {
+            cleaned
+        }
 
         return try {
-            val numericPart = cleanInput.removePrefix("px-")
-            val formatted = "PX-$numericPart"
-
-            Log.d("UserRepositoryImpl", "Querying users collection by plenxoId: $cleanInput ($formatted)")
-            val resultsList = mutableListOf<Map<String, Any>>()
-
-            var snapshot = try {
-                getQuerySnapshotServerFirst(firestore.collection("users").whereEqualTo("plenxoId", cleanInput))
-            } catch (e: Exception) {
+            val docRef = firestore.collection("user_lookup").document(canonicalPxId)
+            val snapshot = getDocumentServerFirst(docRef)
+            if (snapshot.exists()) {
+                val data = snapshot.data?.toMutableMap() ?: mutableMapOf()
+                data["docId"] = (data["uid"] as? String) ?: snapshot.id
+                data
+            } else {
                 null
             }
-
-            if (snapshot == null || snapshot.isEmpty) {
-                snapshot = try {
-                    getQuerySnapshotServerFirst(firestore.collection("users").whereEqualTo("plenxoId", formatted))
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            if (snapshot == null || snapshot.isEmpty) {
-                snapshot = try {
-                    getQuerySnapshotServerFirst(firestore.collection("users").whereEqualTo("plenxoId", formatted.lowercase()))
-                } catch (e: Exception) {
-                    null
-                }
-            }
-
-            snapshot?.documents?.forEach { doc ->
-                val data = doc.data?.toMutableMap() ?: return@forEach
-                data["docId"] = doc.id
-                data["uid"] = (data["uid"] as? String) ?: doc.id
-                resultsList.add(data)
-            }
-
-            // Normalize all result maps strictly using plenxoId
-            resultsList.map { rawMap ->
-                val norm = rawMap.toMutableMap()
-                val uid = (norm["uid"] as? String) ?: (norm["docId"] as? String) ?: ""
-                norm["uid"] = uid
-                norm["docId"] = uid
-                val pId = (norm["plenxoId"] as? String) ?: (norm["userCode"] as? String) ?: formatted
-                norm["plenxoId"] = pId
-                val dName = (norm["displayName"] as? String) ?: (norm["name"] as? String) ?: (norm["fullName"] as? String) ?: "Plenxo User"
-                norm["displayName"] = dName
-                norm["name"] = dName
-                val pic = (norm["profilePicUrl"] as? String) ?: (norm["profile_pic_url"] as? String) ?: (norm["photoUrl"] as? String) ?: ""
-                norm["profilePicUrl"] = pic
-                val bio = (norm["bio"] as? String) ?: (norm["statusMessage"] as? String) ?: ""
-                norm["bio"] = bio
-                norm
-            }
         } catch (e: Exception) {
-            Log.e("UserRepositoryImpl", "Error searching users strictly by plenxoId: ${e.message}", e)
-            emptyList()
+            Log.e("UserRepositoryImpl", "Failed direct document lookup for $canonicalPxId: ${e.message}", e)
+            null
         }
     }
 
+    override suspend fun searchUsersByPlenxoId(plenxoIdQuery: String): List<Map<String, Any>> {
+        val userMap = getUserByPlenxoId(plenxoIdQuery)
+        return if (userMap != null) listOf(userMap) else emptyList()
+    }
+
     override suspend fun searchUserByPlenxoId(plenxoId: String): List<Map<String, Any>> {
-        val cleanId = plenxoId.trim().lowercase()
-        if (cleanId.isBlank()) return emptyList()
-        return try {
-            val query = firestore.collection("users").whereEqualTo("plenxoId", cleanId)
-            val querySnapshot = getQuerySnapshotServerFirst(query)
-            querySnapshot.documents.mapNotNull { doc ->
-                doc.data?.toMutableMap()?.apply {
-                    put("docId", doc.id)
-                    put("uid", get("uid") as? String ?: doc.id)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("UserRepositoryImpl", "Error searching user by plenxoId $cleanId: ${e.message}")
-            emptyList()
-        }
+        val userMap = getUserByPlenxoId(plenxoId)
+        return if (userMap != null) listOf(userMap) else emptyList()
     }
 
     override suspend fun getEmailByPlenxoId(plenxoId: String): String? {
         val userMap = getUserByPlenxoId(plenxoId)
         return userMap?.get("email") as? String
-    }
-
-    override suspend fun getUserByPlenxoId(plenxoId: String): Map<String, Any>? {
-        val cleaned = plenxoId.trim().lowercase()
-        if (cleaned.isBlank()) return null
-
-        return try {
-            val query1 = firestore.collection("users").whereEqualTo("plenxoId", cleaned).limit(1)
-            var snapshot = try {
-                getQuerySnapshotServerFirst(query1)
-            } catch (e: Exception) {
-                null
-            }
-
-            if (snapshot == null || snapshot.isEmpty) {
-                val formatted = "PX-${cleaned.removePrefix("px-")}"
-                val query2 = firestore.collection("users").whereEqualTo("plenxoId", formatted).limit(1)
-                snapshot = try {
-                    getQuerySnapshotServerFirst(query2)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-
-            if (snapshot != null && !snapshot.isEmpty) {
-                snapshot.documents[0].data
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.e("UserRepositoryImpl", "Failed to fetch user by plenxoId '$cleaned': ${e.message}", e)
-            null
-        }
     }
 }
