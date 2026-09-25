@@ -708,25 +708,22 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Search users by plenxoId, plenxo_id, userCode, or document ID
-                val querySnapshot = firestore.collection("users")
-                    .whereEqualTo("plenxoId", cleanId)
-                    .get().await()
-
-                val doc = if (!querySnapshot.isEmpty) {
-                    querySnapshot.documents.first()
+                val formattedPxId = if (cleanId.startsWith("PX-", ignoreCase = true)) {
+                    "PX-${cleanId.substring(3).trim()}"
+                } else if (cleanId.length == 6 && cleanId.all { it.isDigit() }) {
+                    "PX-$cleanId"
                 } else {
-                    val queryAlt = firestore.collection("users")
-                        .whereEqualTo("userCode", cleanId)
-                        .get().await()
-                    if (!queryAlt.isEmpty) {
-                        queryAlt.documents.first()
-                    } else {
-                        firestore.collection("users").document(cleanId).get().await()
-                    }
+                    cleanId
                 }
 
-                val foundUid = if (doc.exists()) doc.id else cleanId
+                val lookupDoc = firestore.collection("user_lookup").document(formattedPxId).get().await()
+                val foundUid = if (lookupDoc.exists()) {
+                    lookupDoc.getString("uid") ?: lookupDoc.id
+                } else {
+                    val userDoc = firestore.collection("users").document(cleanId).get().await()
+                    if (userDoc.exists()) userDoc.id else cleanId
+                }
+
                 withContext(Dispatchers.Main) {
                     selectedUserIdForProfile.value = foundUid
                     navigateToScreen(PlenxoScreen.USER_PROFILE)
@@ -2321,41 +2318,42 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                     var foundEmailStr: String? = null
                     try {
                         kotlinx.coroutines.withTimeoutOrNull(12000L) {
-                            var snapshot = firestore.collection("users")
-                                .whereEqualTo("plenxoId", formattedPxId.uppercase())
-                                .limit(1)
-                                .get()
-                                .await()
-                            if (snapshot.isEmpty) {
-                                snapshot = firestore.collection("users")
-                                    .whereEqualTo("plenxoId", targetId)
-                                    .limit(1)
-                                    .get()
-                                    .await()
+                            try {
+                                val lookupDoc = firestore.collection("user_lookup").document(formattedPxId.uppercase()).get().await()
+                                val targetUid = if (lookupDoc.exists()) {
+                                    lookupDoc.getString("uid") ?: lookupDoc.id
+                                } else null
+
+                                if (!targetUid.isNullOrBlank()) {
+                                    val userDoc = firestore.collection("users").document(targetUid).get().await()
+                                    if (userDoc.exists()) {
+                                        foundEmailStr = userDoc.getString("email")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.w("PlenxoViewModel", "Direct user_lookup GET note on login: ${e.message}")
                             }
-                            if (snapshot.isEmpty) {
-                                snapshot = firestore.collection("users")
-                                    .whereEqualTo("plenxoId", rawInput.trim())
-                                    .limit(1)
-                                    .get()
-                                    .await()
-                            }
-                            if (snapshot.isEmpty) {
-                                snapshot = firestore.collection("users")
-                                    .whereEqualTo("userCode", targetId)
-                                    .limit(1)
-                                    .get()
-                                    .await()
-                            }
-                            if (snapshot.isEmpty) {
-                                snapshot = firestore.collection("users")
-                                    .whereEqualTo("userCode", formattedPxId)
-                                    .limit(1)
-                                    .get()
-                                    .await()
-                            }
-                            if (!snapshot.isEmpty) {
-                                foundEmailStr = snapshot.documents[0].getString("email")
+
+                            if (foundEmailStr.isNullOrBlank()) {
+                                try {
+                                    var snapshot = firestore.collection("users")
+                                        .whereEqualTo("plenxoId", formattedPxId.uppercase())
+                                        .limit(1)
+                                        .get()
+                                        .await()
+                                    if (snapshot.isEmpty) {
+                                        snapshot = firestore.collection("users")
+                                            .whereEqualTo("plenxoId", targetId)
+                                            .limit(1)
+                                            .get()
+                                            .await()
+                                    }
+                                    if (!snapshot.isEmpty) {
+                                        foundEmailStr = snapshot.documents[0].getString("email")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w("PlenxoViewModel", "Fallback query note on login: ${e.message}")
+                                }
                             }
 
                             if (foundEmailStr.isNullOrBlank()) {
@@ -4556,59 +4554,86 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val foundDocs = mutableMapOf<String, UserProfile>()
-                val collections = listOf("users")
-                val fields = listOf("plenxoId", "userCode", "plenxo_id", "px_id", "user_code")
 
-                for (collectionName in collections) {
-                    for (field in fields) {
-                        for (key in queryKeys) {
-                            try {
-                                val snap = firestore.collection(collectionName)
-                                    .whereEqualTo(field, key)
-                                    .get().await()
-                                for (doc in snap.documents) {
-                                    if (doc.exists()) {
-                                        val data = doc.data ?: continue
-                                        val resolvedUid = (data["uid"] as? String)?.ifBlank { null }
-                                            ?: (data["id"] as? String)?.ifBlank { null }
-                                            ?: doc.id
-                                        val resolvedName = (data["displayName"] as? String)?.ifBlank { null }
-                                            ?: (data["name"] as? String)
-                                            ?: (data["fullName"] as? String)
-                                            ?: "Plenxo User"
-                                        val rawPxId = (data["plenxoId"] as? String)
-                                            ?: (data["plenxo_id"] as? String)
-                                            ?: (data["px_id"] as? String)
-                                            ?: (data["userCode"] as? String)
-                                            ?: (data["user_code"] as? String)
-                                            ?: ""
-                                        val cleanPxId = rawPxId.trim().removePrefix("@").removePrefix("#")
-                                        val normalizedPxId = if (cleanPxId.startsWith("PX-", ignoreCase = true)) {
-                                            "PX-${cleanPxId.removePrefix("PX-").removePrefix("px-")}"
-                                        } else if (cleanPxId.length == 6 && cleanPxId.all { it.isDigit() }) {
-                                            "PX-$cleanPxId"
-                                        } else if (cleanPxId.isNotBlank()) {
-                                            "PX-$cleanPxId"
-                                        } else {
-                                            formattedPx
+                // 1. Direct document lookup on /user_lookup/{formattedPx}
+                try {
+                    val lookupSnap = firestore.collection("user_lookup").document(formattedPx).get().await()
+                    if (lookupSnap.exists()) {
+                        val uid = lookupSnap.getString("uid") ?: lookupSnap.id
+                        val dName = lookupSnap.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" } ?: "Plenxo User"
+                        val pId = lookupSnap.getString("plenxoId") ?: formattedPx
+                        val pic = lookupSnap.getString("profilePicUrl") ?: ""
+                        val ring = lookupSnap.getString("profileRingId") ?: "none"
+                        val prof = UserProfile(
+                            id = uid,
+                            uid = uid,
+                            displayName = dName,
+                            plenxoId = pId,
+                            userCode = pId.removePrefix("PX-"),
+                            profilePicUrl = pic,
+                            profileRingId = ring
+                        )
+                        foundDocs[uid] = prof
+                    }
+                } catch (e: Exception) {
+                    Log.w("Plenxo", "Direct user_lookup GET error: ${e.message}")
+                }
+
+                if (foundDocs.isEmpty()) {
+                    val collections = listOf("users")
+                    val fields = listOf("plenxoId", "userCode", "plenxo_id", "px_id", "user_code")
+
+                    for (collectionName in collections) {
+                        for (field in fields) {
+                            for (key in queryKeys) {
+                                try {
+                                    val snap = firestore.collection(collectionName)
+                                        .whereEqualTo(field, key)
+                                        .get().await()
+                                    for (doc in snap.documents) {
+                                        if (doc.exists()) {
+                                            val data = doc.data ?: continue
+                                            val resolvedUid = (data["uid"] as? String)?.ifBlank { null }
+                                                ?: (data["id"] as? String)?.ifBlank { null }
+                                                ?: doc.id
+                                            val resolvedName = (data["displayName"] as? String)?.ifBlank { null }
+                                                ?: (data["name"] as? String)
+                                                ?: (data["fullName"] as? String)
+                                                ?: "Plenxo User"
+                                            val rawPxId = (data["plenxoId"] as? String)
+                                                ?: (data["plenxo_id"] as? String)
+                                                ?: (data["px_id"] as? String)
+                                                ?: (data["userCode"] as? String)
+                                                ?: (data["user_code"] as? String)
+                                                ?: ""
+                                            val cleanPxId = rawPxId.trim().removePrefix("@").removePrefix("#")
+                                            val normalizedPxId = if (cleanPxId.startsWith("PX-", ignoreCase = true)) {
+                                                "PX-${cleanPxId.removePrefix("PX-").removePrefix("px-")}"
+                                            } else if (cleanPxId.length == 6 && cleanPxId.all { it.isDigit() }) {
+                                                "PX-$cleanPxId"
+                                            } else if (cleanPxId.isNotBlank()) {
+                                                "PX-$cleanPxId"
+                                            } else {
+                                                formattedPx
+                                            }
+                                            val profilePic = (data["profilePicUrl"] as? String) ?: (data["avatar_url"] as? String) ?: ""
+                                            val profileRing = (data["selectedRingId"] as? String) ?: (data["profileRingId"] as? String) ?: "none"
+
+                                            val userProf = UserProfile(
+                                                id = resolvedUid,
+                                                uid = resolvedUid,
+                                                displayName = resolvedName,
+                                                plenxoId = normalizedPxId,
+                                                userCode = normalizedPxId.removePrefix("PX-"),
+                                                profilePicUrl = profilePic,
+                                                profileRingId = profileRing
+                                            )
+                                            foundDocs[resolvedUid] = userProf
                                         }
-                                        val profilePic = (data["profilePicUrl"] as? String) ?: (data["avatar_url"] as? String) ?: ""
-                                        val profileRing = (data["selectedRingId"] as? String) ?: (data["profileRingId"] as? String) ?: "none"
-
-                                        val userProf = UserProfile(
-                                            id = resolvedUid,
-                                            uid = resolvedUid,
-                                            displayName = resolvedName,
-                                            plenxoId = normalizedPxId,
-                                            userCode = normalizedPxId.removePrefix("PX-"),
-                                            profilePicUrl = profilePic,
-                                            profileRingId = profileRing
-                                        )
-                                        foundDocs[resolvedUid] = userProf
                                     }
+                                } catch (e: Exception) {
+                                    Log.w("Plenxo", "Search fallback note on $collectionName.$field = $key: ${e.message}")
                                 }
-                            } catch (e: Exception) {
-                                Log.w("Plenxo", "Search error on $collectionName.$field = $key: ${e.message}")
                             }
                         }
                     }

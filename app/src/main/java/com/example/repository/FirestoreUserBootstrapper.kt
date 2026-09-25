@@ -79,18 +79,17 @@ object FirestoreUserBootstrapper {
         val deterministicCode = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
         val deterministicPxId = "PX-$deterministicCode"
 
-        // 4. Quick uniqueness check with short timeout
+        // 4. Quick uniqueness check with short timeout on /user_lookup/{pxId} direct GET
         return try {
             val isTaken = withTimeoutOrNull(2500L) {
                 try {
-                    val querySnap = firestore.collection("users")
-                        .whereEqualTo("plenxoId", deterministicPxId)
-                        .limit(1)
+                    val lookupSnap = firestore.collection("user_lookup")
+                        .document(deterministicPxId)
                         .get()
                         .await()
-                    if (!querySnap.isEmpty) {
-                        val existingDoc = querySnap.documents[0]
-                        existingDoc.id != uid
+                    if (lookupSnap.exists()) {
+                        val existingUid = lookupSnap.getString("uid") ?: lookupSnap.id
+                        existingUid != uid
                     } else {
                         false
                     }
@@ -106,12 +105,11 @@ object FirestoreUserBootstrapper {
                 for (i in 1..5) {
                     val randomCode = Random.nextInt(100000, 1000000).toString()
                     candidate = "PX-$randomCode"
-                    val query = firestore.collection("users")
-                        .whereEqualTo("plenxoId", candidate)
-                        .limit(1)
+                    val candSnap = firestore.collection("user_lookup")
+                        .document(candidate)
                         .get()
                         .await()
-                    if (query.isEmpty) break
+                    if (!candSnap.exists()) break
                 }
                 candidate
             } else {

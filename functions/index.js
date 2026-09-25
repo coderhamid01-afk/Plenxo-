@@ -1,4 +1,5 @@
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onCall, onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -323,4 +324,106 @@ exports.onUserProfileWritten = onDocumentWritten("users/{userId}", async (event)
   };
 
   await db.collection("user_lookup").doc(formattedPxId).set(safeLookup, { merge: true });
+});
+
+/**
+ * 6. Callable Cloud Function: Atomic Server-Side Plenxo ID Allocation & Uniqueness Claim
+ */
+exports.allocatePlenxoId = onCall(async (request) => {
+  const uid = request.auth ? request.auth.uid : null;
+  if (!uid) {
+    throw new Error("unauthenticated: User must be authenticated to allocate a Plenxo ID");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const userSnap = await userRef.get();
+
+  if (userSnap.exists) {
+    const existingPid = userSnap.data().plenxoId;
+    if (existingPid && typeof existingPid === "string" && existingPid.startsWith("PX-")) {
+      return { success: true, plenxoId: existingPid };
+    }
+  }
+
+  // Transactionally claim unique 6-digit candidate ID
+  let assignedPxId = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const randomDigits = Math.floor(100000 + Math.random() * 900000).toString();
+    const candidatePxId = `PX-${randomDigits}`;
+    const lookupRef = db.collection("user_lookup").doc(candidatePxId);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const lookupDoc = await transaction.get(lookupRef);
+        if (lookupDoc.exists && lookupDoc.data().uid !== uid) {
+          throw new Error("COLLISION");
+        }
+
+        const safeLookup = {
+          plenxoId: candidatePxId,
+          uid: uid,
+          displayName: (userSnap.exists && userSnap.data().displayName) || "Plenxo User",
+          profilePicUrl: (userSnap.exists && userSnap.data().profilePicUrl) || "",
+          bio: (userSnap.exists && userSnap.data().bio) || "",
+          profileRingId: "none",
+          updatedAt: Date.now()
+        };
+
+        transaction.set(lookupRef, safeLookup, { merge: true });
+        transaction.set(userRef, { plenxoId: candidatePxId, updatedAt: Date.now() }, { merge: true });
+      });
+
+      assignedPxId = candidatePxId;
+      break;
+    } catch (err) {
+      if (err.message === "COLLISION") {
+        console.warn(`Plenxo ID collision for ${candidatePxId}, retrying...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!assignedPxId) {
+    throw new Error("internal: Failed to allocate unique Plenxo ID after max retries");
+  }
+
+  return { success: true, plenxoId: assignedPxId };
+});
+
+/**
+ * 7. Server-Side Backfill for Existing Users to /user_lookup/{plenxoId}
+ */
+exports.backfillUserLookups = onRequest(async (req, res) => {
+  try {
+    const usersSnap = await db.collection("users").get();
+    let count = 0;
+
+    const batch = db.batch();
+    for (const doc of usersSnap.docs) {
+      const uData = doc.data();
+      const pId = String(uData.plenxoId || uData.userCode || "").trim();
+      if (!pId) continue;
+
+      const formattedPxId = pId.startsWith("PX-") ? pId : (pId.length === 6 && /^\d+$/.test(pId) ? `PX-${pId}` : pId);
+      const lookupRef = db.collection("user_lookup").doc(formattedPxId);
+
+      batch.set(lookupRef, {
+        plenxoId: formattedPxId,
+        uid: doc.id,
+        displayName: uData.displayName || uData.name || "Plenxo User",
+        profilePicUrl: uData.profilePicUrl || uData.photoUrl || "",
+        bio: uData.bio || uData.statusMessage || "",
+        profileRingId: uData.profileRingId || uData.selectedRingId || "none",
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      count++;
+    }
+
+    await batch.commit();
+    res.status(200).send({ success: true, migratedCount: count });
+  } catch (err) {
+    res.status(500).send({ success: false, error: err.message });
+  }
 });

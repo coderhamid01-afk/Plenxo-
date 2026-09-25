@@ -171,39 +171,38 @@ class SecurityRepository(private val context: Context) {
             var targetDoc: com.google.firebase.firestore.DocumentSnapshot? = null
 
             // 1. Attempt direct document fetch by UID
-            val directDoc = firestore.collection("users").document(cleanInput).get().await()
-            if (directDoc.exists()) {
+            val directDoc = try { firestore.collection("users").document(cleanInput).get().await() } catch (_: Exception) { null }
+            if (directDoc != null && directDoc.exists()) {
                 targetDoc = directDoc
             } else {
-                // 2. Query users by email
-                val emailQuery = firestore.collection("users")
-                    .whereEqualTo("email", cleanInput)
-                    .limit(1)
-                    .get()
-                    .await()
+                // 2. Try direct lookup on /user_lookup/{cleanInput}
+                val formattedPx = if (!cleanInput.startsWith("PX-", ignoreCase = true) && cleanInput.length == 6 && cleanInput.all { it.isDigit() }) {
+                    "PX-$cleanInput"
+                } else cleanInput.uppercase()
 
-                if (!emailQuery.isEmpty) {
-                    targetDoc = emailQuery.documents[0]
-                } else {
-                    // 3. Query users by plenxoId or userCode
-                    val plenxoQuery = firestore.collection("users")
-                        .whereEqualTo("plenxoId", cleanInput)
-                        .limit(1)
-                        .get()
-                        .await()
+                val lookupDoc = try { firestore.collection("user_lookup").document(formattedPx).get().await() } catch (_: Exception) { null }
+                if (lookupDoc != null && lookupDoc.exists()) {
+                    val uid = lookupDoc.getString("uid") ?: lookupDoc.id
+                    val userDoc = try { firestore.collection("users").document(uid).get().await() } catch (_: Exception) { null }
+                    if (userDoc != null && userDoc.exists()) {
+                        targetDoc = userDoc
+                    }
+                }
 
-                    if (!plenxoQuery.isEmpty) {
-                        targetDoc = plenxoQuery.documents[0]
-                    } else {
-                        val numericCode = cleanInput.removePrefix("PX-")
-                        val codeQuery = firestore.collection("users")
-                            .whereEqualTo("userCode", numericCode)
+                if (targetDoc == null) {
+                    // 3. Query fallback wrapped in try-catch
+                    try {
+                        val emailQuery = firestore.collection("users")
+                            .whereEqualTo("email", cleanInput)
                             .limit(1)
                             .get()
                             .await()
-                        if (!codeQuery.isEmpty) {
-                            targetDoc = codeQuery.documents[0]
+
+                        if (!emailQuery.isEmpty) {
+                            targetDoc = emailQuery.documents[0]
                         }
+                    } catch (e: Exception) {
+                        Log.w("SecurityRepository", "Email query fallback note: ${e.message}")
                     }
                 }
             }

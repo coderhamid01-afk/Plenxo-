@@ -49,11 +49,15 @@ fun PlenxoIdRevealScreen(
     LaunchedEffect(Unit) {
         authViewModel.isSavingProfileAndId.value = false
         if (authViewModel.plenxoId.value.isBlank()) {
-            authViewModel.plenxoId.value = "PX-512727"
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            if (uid.isNotBlank()) {
+                val code = (kotlin.math.abs(uid.hashCode()) % 900000 + 100000).toString()
+                authViewModel.plenxoId.value = "PX-$code"
+            }
         }
     }
 
-    val displayId = plenxoIdState.ifBlank { "PX-512727" }
+    val displayId = plenxoIdState.ifBlank { "PX-000000" }
 
     val copyToClipboard = {
         try {

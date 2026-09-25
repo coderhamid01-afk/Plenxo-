@@ -130,13 +130,12 @@ suspend fun generateUniqueNumericPlenxoId(
                 val candidatePxId = "PX-$numericCode"
 
                 try {
-                    val plenxoIdQuery = firestore.collection("users")
-                        .whereEqualTo("plenxoId", candidatePxId)
-                        .limit(1)
+                    val lookupDoc = firestore.collection("user_lookup")
+                        .document(candidatePxId)
                         .get()
                         .await()
 
-                    if (plenxoIdQuery.isEmpty) {
+                    if (!lookupDoc.exists()) {
                         return@withTimeoutOrNull candidatePxId
                     }
                 } catch (e: Exception) {

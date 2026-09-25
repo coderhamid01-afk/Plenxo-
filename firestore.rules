@@ -21,9 +21,8 @@ service cloud.firestore {
       allow get: if isAuthenticated();
       // Completely block collection list enumeration
       allow list: if false;
-      // Users can only create or update their own lookup entry
-      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      // Server-write-only: Normal authenticated clients cannot create, update, or delete lookup records
+      allow create, update, delete: if false;
     }
 
     // ===============================================================
