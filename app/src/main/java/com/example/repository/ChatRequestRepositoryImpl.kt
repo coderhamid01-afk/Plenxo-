@@ -378,13 +378,15 @@ class ChatRequestRepositoryImpl : ChatRequestRepository {
     }
 
     override suspend fun rejectChatRequest(requestId: String, senderUid: String, receiverUid: String): Boolean {
-        if (requestId.isBlank()) return false
+        val reqId = requestId.ifBlank { if (senderUid.isNotBlank() && receiverUid.isNotBlank()) "${senderUid}_${receiverUid}" else "" }
+        if (reqId.isBlank()) return false
         return try {
-            firestore.collection("chat_requests").document(requestId).delete().await()
-            Log.d("ChatRequestRepo", "Chat request deleted/rejected atomically: $requestId")
+            firestore.collection("chat_requests").document(reqId).delete().await()
+            firestore.collection("friend_requests").document(reqId).delete().await()
+            Log.d("ChatRequestRepo", "Chat request and friend request deleted/rejected atomically: $reqId")
             true
         } catch (e: Exception) {
-            Log.e("ChatRequestRepo", "Failed to delete/reject chat request: ${e.message}", e)
+            Log.e("ChatRequestRepo", "Failed to delete/reject chat request $reqId: ${e.message}", e)
             false
         }
     }

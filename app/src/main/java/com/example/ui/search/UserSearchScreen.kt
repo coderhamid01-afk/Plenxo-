@@ -64,10 +64,6 @@ fun UserSearchScreen(
     val contactStatuses by chatRequestViewModel.contactStatuses.collectAsState()
     val toastMsg by chatRequestViewModel.toastMessage.collectAsState()
 
-    LaunchedEffect(Unit) {
-        userSearchViewModel.loadInitialUsers()
-    }
-
     LaunchedEffect(searchError) {
         searchError?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -140,7 +136,7 @@ fun UserSearchScreen(
                 },
                 placeholder = {
                     Text(
-                        "Search by Plenxo ID (e.g. PX-123456)",
+                        "Enter 6-digit Plenxo ID",
                         color = textMuted,
                         fontSize = 14.sp
                     )
@@ -199,7 +195,7 @@ fun UserSearchScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Enter user's Plenxo ID (e.g. PX-123456, 123456, or @PX-123456)",
+                text = "Enter the user's 6-digit Plenxo ID",
                 color = textMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 8.dp)
@@ -223,12 +219,41 @@ fun UserSearchScreen(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        if (hasSearched) "No users found matching '${searchQuery.trim()}'" else "No registered users found",
-                        color = textMuted,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
-                    )
+                    if (hasSearched) {
+                        Text(
+                            text = if (!searchError.isNullOrBlank()) searchError!! else "No user found for '${searchQuery.trim()}'",
+                            color = textMuted,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(top = 40.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = textMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Find a Plenxo User",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textWhite
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                "Enter a 6-digit Plenxo ID above to search.",
+                                fontSize = 13.sp,
+                                color = textMuted,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
                 }
             } else {
                 LazyColumn(

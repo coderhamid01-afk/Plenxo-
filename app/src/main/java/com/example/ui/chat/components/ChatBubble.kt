@@ -41,6 +41,7 @@ import com.example.model.Message
 import com.example.model.MessageStatus
 import com.example.ui.components.VoiceNoteBubble
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -326,21 +327,30 @@ fun ChatBubble(
                         "FILE" -> {
                             val fileUrl = message.mediaUrl.ifBlank { message.localUri ?: "" }
                             val context = LocalContext.current
+                            var isDownloading by remember { mutableStateOf(false) }
+                            var downloadProgress by remember { mutableIntStateOf(0) }
+                            var isDownloaded by remember { mutableStateOf(false) }
+                            val coroutineScope = rememberCoroutineScope()
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(Color.Black.copy(alpha = 0.2f))
                                     .clickable {
-                                        if (fileUrl.isNotBlank()) {
-                                            try {
-                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(fileUrl)).apply {
-                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                }
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                android.widget.Toast.makeText(context, "Opening file link...", android.widget.Toast.LENGTH_SHORT).show()
+                                        if (fileUrl.isNotBlank() && !isDownloading && message.effectiveStatus != MessageStatus.SENDING) {
+                                            isDownloading = true
+                                            coroutineScope.launch {
+                                                com.example.util.FileDownloadManager.downloadFile(
+                                                    context = context,
+                                                    fileUrl = fileUrl,
+                                                    suggestedFileName = message.messageText,
+                                                    onProgress = { pct -> downloadProgress = pct },
+                                                    onResult = { success, _ ->
+                                                        isDownloading = false
+                                                        if (success) isDownloaded = true
+                                                    }
+                                                )
                                             }
                                         }
                                     }
@@ -353,12 +363,20 @@ fun ChatBubble(
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.InsertDriveFile,
-                                            contentDescription = "File Attachment",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                        if (isDownloading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = Color.White,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.InsertDriveFile,
+                                                contentDescription = "File Attachment",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
@@ -370,8 +388,14 @@ fun ChatBubble(
                                         fontWeight = FontWeight.SemiBold,
                                         maxLines = 1
                                     )
+                                    val statusText = when {
+                                        message.effectiveStatus == MessageStatus.SENDING -> "Uploading... ${message.uploadProgress}%"
+                                        isDownloading -> if (downloadProgress > 0) "Downloading $downloadProgress%" else "Downloading..."
+                                        isDownloaded -> "Downloaded"
+                                        else -> "Tap to download"
+                                    }
                                     Text(
-                                        text = if (message.effectiveStatus == MessageStatus.SENDING) "Uploading... ${message.uploadProgress}%" else "Tap to download/view",
+                                        text = statusText,
                                         color = Color.White.copy(alpha = 0.7f),
                                         fontSize = 12.sp
                                     )

@@ -34,6 +34,7 @@ import com.example.viewmodel.ChatRequestViewModel
 @Composable
 fun ChatRequestsScreen(
     onBack: () -> Unit,
+    onRequestAccepted: () -> Unit = {},
     viewModel: ChatRequestViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -187,7 +188,11 @@ fun ChatRequestsScreen(
                                             UserActionState.Accepted
                                         } else {
                                             UserActionState.AcceptReject(
-                                                onAccept = { viewModel.acceptRequest(request) },
+                                                onAccept = {
+                                                    viewModel.acceptRequest(request) {
+                                                        onRequestAccepted()
+                                                    }
+                                                },
                                                 onReject = { viewModel.rejectRequest(request) }
                                             )
                                         },

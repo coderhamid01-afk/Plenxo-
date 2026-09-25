@@ -84,7 +84,7 @@ fun SetupProfileScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0B0F17),
+        containerColor = Color(0xFF0F1B33),
         topBar = {
             TopAppBar(
                 title = {
@@ -96,7 +96,7 @@ fun SetupProfileScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F172A).copy(alpha = 0.8f)
+                    containerColor = Color(0xFF0F1B33).copy(alpha = 0.9f)
                 )
             )
         }
@@ -108,9 +108,9 @@ fun SetupProfileScreen(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color(0xFF0F172A),
-                            Color(0xFF0B0F17),
-                            Color(0xFF080C14)
+                            Color(0xFF132247),
+                            Color(0xFF0F1B33),
+                            Color(0xFF0D172D)
                         )
                     )
                 )
@@ -164,7 +164,7 @@ fun SetupProfileScreen(
                         modifier = Modifier
                             .size(114.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E293B))
+                            .background(Color.Black)
                             .border(2.5.dp, primaryColor, CircleShape)
                             .clickable { galleryLauncher.launch("image/*") }
                             .shadow(12.dp, CircleShape),
@@ -205,7 +205,7 @@ fun SetupProfileScreen(
                             .size(34.dp)
                             .clip(CircleShape)
                             .background(primaryColor)
-                            .border(2.dp, Color(0xFF0B0F17), CircleShape)
+                            .border(2.dp, Color(0xFF0F1B33), CircleShape)
                             .clickable { galleryLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {

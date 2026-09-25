@@ -429,7 +429,11 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
                     exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
                 ) {
                     com.example.ui.settings.ChatRequestsScreen(
-                        onBack = { viewModel.navigateBack() }
+                        onBack = { viewModel.navigateBack() },
+                        onRequestAccepted = {
+                            viewModel.startListeningForChats()
+                            viewModel.navigateToScreen(PlenxoScreen.HOME, addToHistory = false, clearHistory = true)
+                        }
                     )
                 }
             }

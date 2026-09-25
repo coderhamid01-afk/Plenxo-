@@ -117,7 +117,11 @@ fun VideoPlayerOverlay(
         ExoPlayer.Builder(context.applicationContext)
             .setMediaSourceFactory(mediaSourceFactory)
             .build().apply {
-                val uri = Uri.parse(videoUrl)
+                val uri = if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://") || videoUrl.startsWith("content://") || videoUrl.startsWith("file://")) {
+                    Uri.parse(videoUrl)
+                } else {
+                    Uri.fromFile(java.io.File(videoUrl))
+                }
                 setMediaItem(MediaItem.fromUri(uri))
                 playWhenReady = true
                 prepare()

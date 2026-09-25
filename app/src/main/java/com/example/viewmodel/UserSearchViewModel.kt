@@ -82,196 +82,63 @@ class UserSearchViewModel @JvmOverloads constructor(
     }
 
     /**
-     * Auto-loads all registered users from Firestore `users` collection on screen launch.
-     * Maps retrieved documents to UserModel objects and filters out the current logged-in user.
+     * No-op: Automatic user enumeration has been completely removed for privacy compliance.
+     * Users are no longer auto-loaded or cached client-side.
      */
     fun loadInitialUsers() {
-        if (_allUsers.value.isNotEmpty()) {
-            if (_searchQuery.value.isBlank()) {
-                _searchResults.value = _allUsers.value
-                _userModelResults.value = _allUserModels.value
-            }
-            return
-        }
-        _isSearching.value = true
-        _searchError.value = null
-        viewModelScope.launch {
-            try {
-                val currentAuthUid = auth.currentUser?.uid
-                val snapshot = firestore.collection("users").get().await()
-                val userList = mutableListOf<Map<String, Any>>()
-                val modelList = mutableListOf<UserModel>()
-
-                for (doc in snapshot.documents) {
-                    val uid = doc.id
-                    if (currentAuthUid != null && uid == currentAuthUid) continue
-
-                    val data = doc.data?.toMutableMap() ?: mutableMapOf()
-                    data["uid"] = uid
-                    data["id"] = uid
-                    data["docId"] = uid
-
-                    val dName = doc.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("name")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("display_name")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("fullName")?.takeIf { it.isNotBlank() && it != "User" }
-                        ?: doc.getString("displayName")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("name")?.takeIf { it.isNotBlank() }
-                        ?: "Plenxo User"
-                    data["displayName"] = dName
-                    data["name"] = dName
-
-                    val rawPid = doc.getString("plenxoId")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("userCode")?.takeIf { it.isNotBlank() }
-                        ?: "PX-${uid.take(6).uppercase()}"
-                    val pId = if (rawPid.startsWith("PX-", ignoreCase = true)) {
-                        "PX-" + rawPid.substring(3)
-                    } else if (rawPid.length == 6 && rawPid.all { it.isDigit() }) {
-                        "PX-$rawPid"
-                    } else {
-                        rawPid
-                    }
-                    data["plenxoId"] = pId
-
-                    val bio = doc.getString("bio")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("statusMessage")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("bioStatus")?.takeIf { it.isNotBlank() }
-                        ?: ""
-                    data["bio"] = bio
-                    data["statusMessage"] = bio
-
-                    val pic = doc.getString("profilePicUrl")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("avatar_url")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("avatarUrl")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("photoUrl")?.takeIf { it.isNotBlank() }
-                        ?: ""
-                    data["profilePicUrl"] = pic
-
-                    val email = doc.getString("email") ?: ""
-                    data["email"] = email
-
-                    val ringId = doc.getString("profileRingId")
-                        ?: doc.getString("selectedRingId")
-                        ?: "none"
-                    data["profileRingId"] = ringId
-
-                    userList.add(data)
-
-                    val userModel = UserModel(
-                        uid = uid,
-                        displayName = dName,
-                        name = dName,
-                        email = email,
-                        bio = bio,
-                        statusMessage = bio,
-                        profilePicUrl = pic,
-                        plenxoId = pId,
-                        profileRingId = ringId
-                    )
-                    modelList.add(userModel)
-                }
-
-                _allUsers.value = userList
-                _allUserModels.value = modelList
-
-                Log.d(TAG_SEARCH, "Operation: LOAD_INITIAL_USERS, path: users, count: ${userList.size}, status: SUCCESS")
-
-                if (_searchQuery.value.isBlank()) {
-                    _searchResults.value = userList
-                    _userModelResults.value = modelList
-                }
-            } catch (e: Exception) {
-                Log.e(TAG_SEARCH, "Operation: LOAD_INITIAL_USERS, path: users, status: FAILURE, error: ${e.message}", e)
-                _searchError.value = "Failed to load users: ${e.localizedMessage}"
-            } finally {
-                _isSearching.value = false
-            }
-        }
+        // Intentionally empty. No initial user loading allowed.
+        _searchResults.value = emptyList()
+        _userModelResults.value = emptyList()
     }
 
     /**
-     * Real-time dynamic filtering strictly by Plenxo ID.
-     * When search query is empty, restores full auto-loaded list.
-     * When Plenxo ID is entered, filters locally or queries Firestore by `plenxoId`.
+     * Updates search query input.
+     * Searches strictly when a valid 6-digit Plenxo ID is supplied.
+     * Clears results when query is empty or incomplete.
      */
     fun updateSearchQuery(query: String) {
         val q = query.take(30)
         _searchQuery.value = q
         _searchError.value = null
+
         if (q.isBlank()) {
-            _searchResults.value = _allUsers.value
-            _userModelResults.value = _allUserModels.value
-            _hasSearched.value = false
+            clearSearch()
             return
         }
 
-        _hasSearched.value = true
         val normalized = normalizePlenxoId(q)
-        val currentAuthUid = auth.currentUser?.uid
-
         if (normalized != null) {
-            val filteredMap = _allUsers.value.filter { u ->
-                val rawPid = (u["plenxoId"] as? String) ?: ""
-                val pid = if (rawPid.startsWith("PX-", ignoreCase = true)) {
-                    "PX-" + rawPid.substring(3)
-                } else if (rawPid.length == 6 && rawPid.all { it.isDigit() }) {
-                    "PX-$rawPid"
-                } else {
-                    rawPid.uppercase()
-                }
-                val uid = (u["uid"] as? String) ?: (u["id"] as? String) ?: ""
-                pid.equals(normalized, ignoreCase = true) && (currentAuthUid == null || uid != currentAuthUid)
-            }
-
-            val filteredModels = _allUserModels.value.filter { m ->
-                val rawPid = m.plenxoId
-                val pid = if (rawPid.startsWith("PX-", ignoreCase = true)) {
-                    "PX-" + rawPid.substring(3)
-                } else if (rawPid.length == 6 && rawPid.all { it.isDigit() }) {
-                    "PX-$rawPid"
-                } else {
-                    rawPid.uppercase()
-                }
-                pid.equals(normalized, ignoreCase = true) && (currentAuthUid == null || m.uid != currentAuthUid)
-            }
-
-            _searchResults.value = filteredMap
-            _userModelResults.value = filteredModels
-
-            // If not found in preloaded cache, trigger direct Firestore query
-            if (filteredMap.isEmpty()) {
-                executeSearch()
-            }
+            executeSearch()
         } else {
-            // For partial or invalid input, clear results (no matching users)
+            // Clear results for incomplete or invalid query
             _searchResults.value = emptyList()
             _userModelResults.value = emptyList()
+            _hasSearched.value = false
         }
     }
 
     fun clearSearch() {
         _searchQuery.value = ""
-        _searchResults.value = _allUsers.value
-        _userModelResults.value = _allUserModels.value
+        _searchResults.value = emptyList()
+        _userModelResults.value = emptyList()
         _hasSearched.value = false
         _searchError.value = null
     }
 
     /**
-     * Direct explicit search strictly by permanent Plenxo ID (`plenxoId`).
+     * Direct explicit search strictly by permanent Plenxo ID (`plenxoId`) using limit(1).
      */
     fun executeSearch() {
         val rawInput = _searchQuery.value.trim().removePrefix("@").removePrefix("#").trim()
         if (rawInput.isBlank()) {
-            _searchResults.value = _allUsers.value
-            _userModelResults.value = _allUserModels.value
-            _hasSearched.value = false
+            clearSearch()
             return
         }
 
         val normalized = normalizePlenxoId(rawInput)
         if (normalized == null) {
             _hasSearched.value = true
+            _searchError.value = "Enter a valid 6-digit Plenxo ID"
             _searchResults.value = emptyList()
             _userModelResults.value = emptyList()
             return
@@ -291,52 +158,23 @@ class UserSearchViewModel @JvmOverloads constructor(
                 val myNormalized = if (myPlenxoId.isNotBlank()) normalizePlenxoId(myPlenxoId) else null
 
                 if (myNormalized != null && myNormalized.equals(normalized, ignoreCase = true)) {
-                    _searchError.value = "You cannot add yourself"
+                    _searchError.value = "You cannot add yourself."
                     _searchResults.value = emptyList()
                     _userModelResults.value = emptyList()
                     _isSearching.value = false
                     return@launch
                 }
 
-                // Check local cache first
-                val localMatches = _allUsers.value.filter { u ->
-                    val rawPid = (u["plenxoId"] as? String) ?: ""
-                    val pid = if (rawPid.startsWith("PX-", ignoreCase = true)) {
-                        "PX-" + rawPid.substring(3)
-                    } else if (rawPid.length == 6 && rawPid.all { it.isDigit() }) {
-                        "PX-$rawPid"
-                    } else {
-                        rawPid.uppercase()
-                    }
-                    val uid = (u["uid"] as? String) ?: (u["id"] as? String) ?: ""
-                    pid.equals(normalized, ignoreCase = true) && (currentAuthUid.isBlank() || uid != currentAuthUid)
-                }
-
-                if (localMatches.isNotEmpty()) {
-                    _searchResults.value = localMatches
-                    _userModelResults.value = _allUserModels.value.filter { m ->
-                        val rawPid = m.plenxoId
-                        val pid = if (rawPid.startsWith("PX-", ignoreCase = true)) {
-                            "PX-" + rawPid.substring(3)
-                        } else if (rawPid.length == 6 && rawPid.all { it.isDigit() }) {
-                            "PX-$rawPid"
-                        } else {
-                            rawPid.uppercase()
-                        }
-                        pid.equals(normalized, ignoreCase = true) && (currentAuthUid.isBlank() || m.uid != currentAuthUid)
-                    }
-                    _isSearching.value = false
-                    return@launch
-                }
-
-                // Query Firestore strictly by plenxoId field
-                val numericPart = normalized.removePrefix("PX-")
-                val searchKeys = listOf(normalized, normalized.lowercase(), numericPart)
+                // Query Firestore strictly by plenxoId field with limit(1)
+                val searchKeys = listOf(normalized, normalized.lowercase())
                 val list = mutableListOf<Map<String, Any>>()
                 val modelList = mutableListOf<UserModel>()
 
                 for (key in searchKeys) {
-                    val query = firestore.collection("users").whereEqualTo("plenxoId", key)
+                    val query = firestore.collection("users")
+                        .whereEqualTo("plenxoId", key)
+                        .limit(1)
+
                     val snapshot = try {
                         getQuerySnapshotServerFirst(query, timeoutMs = 5000L)
                     } catch (e: Exception) {
@@ -347,7 +185,10 @@ class UserSearchViewModel @JvmOverloads constructor(
                     if (!snapshot.isEmpty) {
                         snapshot.documents.forEach { doc ->
                             val uid = doc.id
-                            if (currentAuthUid.isNotBlank() && uid == currentAuthUid) return@forEach
+                            if (currentAuthUid.isNotBlank() && uid == currentAuthUid) {
+                                _searchError.value = "You cannot add yourself."
+                                return@forEach
+                            }
 
                             val data = doc.data?.toMutableMap() ?: mutableMapOf()
                             data["docId"] = uid
@@ -404,17 +245,19 @@ class UserSearchViewModel @JvmOverloads constructor(
                                 )
                             )
                         }
-                        break
+                        if (list.isNotEmpty()) break
                     }
                 }
 
-                if (list.isEmpty()) {
+                if (list.isEmpty() && _searchError.value == null) {
                     val repoResults = userRepository.searchUsersByPlenxoId(normalized)
                     if (repoResults.isNotEmpty()) {
                         repoResults.forEach { r ->
                             val uid = (r["uid"] as? String) ?: (r["docId"] as? String) ?: ""
                             if (currentAuthUid.isBlank() || uid != currentAuthUid) {
                                 list.add(r)
+                            } else {
+                                _searchError.value = "You cannot add yourself."
                             }
                         }
                     }

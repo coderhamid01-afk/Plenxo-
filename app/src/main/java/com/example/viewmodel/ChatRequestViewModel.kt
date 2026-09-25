@@ -66,14 +66,13 @@ class ChatRequestViewModel(
     private fun observeIncomingRequests(uid: String) {
         viewModelScope.launch {
             repository.observeIncomingRequests(uid).collect { requests ->
-                val validRequests = requests.filter { 
+                val pendingRequests = requests.filter { 
                     val st = it.status.lowercase()
-                    st == "pending" || st == "accepted" || st.isEmpty()
+                    st == "pending" || st.isEmpty()
                 }
-                _incomingRequests.value = validRequests
+                _incomingRequests.value = pendingRequests
 
                 // Fire notification if new incoming pending chat request arrives
-                val pendingRequests = validRequests.filter { it.status.lowercase() == "pending" || it.status.isEmpty() }
                 val currentIds = pendingRequests.map { it.id }.toSet()
                 if (previousIncomingRequestIds.isNotEmpty()) {
                     val newRequests = pendingRequests.filter { it.id !in previousIncomingRequestIds }
@@ -153,10 +152,8 @@ class ChatRequestViewModel(
     /**
      * Accept incoming chat request.
      */
-    fun acceptRequest(request: ChatRequest) {
-        _incomingRequests.value = _incomingRequests.value.map {
-            if (it.id == request.id) it.copy(status = "ACCEPTED") else it
-        }
+    fun acceptRequest(request: ChatRequest, onSuccess: () -> Unit = {}) {
+        _incomingRequests.value = _incomingRequests.value.filter { it.id != request.id }
         viewModelScope.launch {
             try {
                 val success = repository.acceptChatRequest(
@@ -167,6 +164,7 @@ class ChatRequestViewModel(
 
                 if (success) {
                     _toastMessage.value = "Request Accepted!"
+                    onSuccess()
                 } else {
                     _toastMessage.value = "Failed to accept request."
                 }

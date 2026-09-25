@@ -68,7 +68,7 @@ fun PlenxoIdRevealScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0B0F17),
+        containerColor = Color(0xFF0F1B33),
         topBar = {
             TopAppBar(
                 title = {
@@ -80,7 +80,7 @@ fun PlenxoIdRevealScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0F172A).copy(alpha = 0.8f)
+                    containerColor = Color(0xFF0F1B33).copy(alpha = 0.9f)
                 )
             )
         }
@@ -92,9 +92,9 @@ fun PlenxoIdRevealScreen(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color(0xFF0F172A),
-                            Color(0xFF0B0F17),
-                            Color(0xFF080C14)
+                            Color(0xFF132247),
+                            Color(0xFF0F1B33),
+                            Color(0xFF0D172D)
                         )
                     )
                 )

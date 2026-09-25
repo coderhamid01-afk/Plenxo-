@@ -8,7 +8,10 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.example.util.VideoAutoDownloader
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
@@ -129,6 +132,7 @@ fun ChatDetailScreen(
     val listState = rememberLazyListState()
 
     var showAttachmentSheet by remember { mutableStateOf(false) }
+    var selectedImageUrlForViewer by remember { mutableStateOf<String?>(null) }
 
     // Photo picker launcher for non-blocking media send (Max 15)
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -503,7 +507,8 @@ fun ChatDetailScreen(
                                 primaryColor = primaryColor,
                                 peerAvatarUrl = profilePicUrl,
                                 peerName = recipientName,
-                                onRetryClick = { failedMsg -> viewModel.retryFailedMessage(failedMsg) }
+                                onRetryClick = { failedMsg -> viewModel.retryFailedMessage(failedMsg) },
+                                onImageClick = { url -> selectedImageUrlForViewer = url }
                             )
                         }
                     }
@@ -613,6 +618,13 @@ fun ChatDetailScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+        }
+
+        if (!selectedImageUrlForViewer.isNullOrBlank()) {
+            com.example.ui.chat.components.ImageViewerDialog(
+                imageUrl = selectedImageUrlForViewer!!,
+                onDismiss = { selectedImageUrlForViewer = null }
+            )
         }
     }
 }
@@ -746,12 +758,18 @@ private fun ChatInputBar(
                             }
                         )
                     } else {
+                        val focusRequester = remember { FocusRequester() }
+                        val keyboardController = LocalSoftwareKeyboardController.current
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
-                                onClick = { /* Toggle Emoji Picker */ },
+                                onClick = {
+                                    focusRequester.requestFocus()
+                                    keyboardController?.show()
+                                },
                                 modifier = Modifier
                                     .size(36.dp)
                                     .testTag("emoji_picker_button")
@@ -780,6 +798,7 @@ private fun ChatInputBar(
                                 ),
                                 modifier = Modifier
                                     .weight(1f)
+                                    .focusRequester(focusRequester)
                                     .onFocusChanged { focusState ->
                                         isFocused = focusState.isFocused
                                     }
@@ -800,92 +819,77 @@ private fun ChatInputBar(
                                 maxLines = 4
                             )
 
+                            // Dynamic action button: Mic when text is blank, Send when text is typed
+                            if (inputText.isBlank()) {
+                                IconButton(
+                                    onClick = { beginRecording() },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .testTag("voice_recording_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Mic,
+                                        contentDescription = "Voice Recording",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            } else {
+                                FloatingActionButton(
+                                    onClick = onSendText,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .testTag("send_message_button"),
+                                    containerColor = Color(0xFF0084FF),
+                                    contentColor = Color.White,
+                                    shape = CircleShape,
+                                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Send",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Plus (+) button to open Share Content sheet
                             IconButton(
                                 onClick = onAttachClick,
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .testTag("attach_media_button")
+                                    .testTag("plus_attach_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.AttachFile,
-                                    contentDescription = "Attach Media",
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Share Content",
                                     tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = onAttachClick,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .testTag("gallery_media_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription = "Gallery",
-                                    tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { beginRecording() },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .testTag("voice_recording_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Mic,
-                                    contentDescription = "Voice Recording",
-                                    tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
-
-                Box(
-                    modifier = Modifier.size(42.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AnimatedContent(
-                        targetState = when {
-                            isRecording -> InputAction.SEND_VOICE
-                            inputText.isNotBlank() -> InputAction.SEND_TEXT
-                            else -> InputAction.RECORD
-                        },
-                        transitionSpec = {
-                            (fadeIn(tween(150)) + scaleIn(initialScale = 0.85f)) togetherWith
-                                (fadeOut(tween(150)) + scaleOut(targetScale = 0.85f))
-                        },
-                        label = "send_mic_transition"
-                    ) { action ->
-                        when (action) {
-                            InputAction.SEND_TEXT -> RoundActionButton(
-                                icon = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
-                                testTag = "send_message_button",
-                                containerColor = Color(0xFF0084FF),
-                                onClick = onSendText
-                            )
-                            InputAction.SEND_VOICE -> RoundActionButton(
-                                icon = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send voice message",
-                                testTag = "send_voice_button",
-                                containerColor = Color(0xFF0084FF),
-                                onClick = { stopAndSendRecording() }
-                            )
-                            InputAction.RECORD -> RoundActionButton(
-                                icon = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
-                                testTag = "send_message_button",
-                                containerColor = Color(0xFF0084FF),
-                                onClick = onSendText
-                            )
-                        }
+                if (isRecording) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    FloatingActionButton(
+                        onClick = { stopAndSendRecording() },
+                        modifier = Modifier
+                            .size(42.dp)
+                            .testTag("send_voice_button"),
+                        containerColor = Color(0xFF0084FF),
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send voice message",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }

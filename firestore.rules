@@ -17,8 +17,10 @@ service cloud.firestore {
     // 1. User Profiles (/users/{userId})
     // ===============================================================
     match /users/{userId} {
-      // Authenticated users can read profiles for Plenxo ID search and chat
-      allow read: if isAuthenticated();
+      // Authenticated users can fetch a specific user profile document by ID
+      allow get: if isAuthenticated();
+      // Restrict collection enumeration: queries must specify limit <= 5 for exact Plenxo ID lookup
+      allow list: if isAuthenticated() && request.query.limit <= 5;
       // Users can only create and modify their own profile
       allow create, update: if isOwner(userId);
       allow delete: if isOwner(userId);
