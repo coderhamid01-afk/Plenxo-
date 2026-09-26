@@ -27,15 +27,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 
+import androidx.compose.ui.graphics.graphicsLayer
+import com.example.ui.animation.PlenxoMotion
+import kotlinx.coroutines.launch
+
 @Composable
 fun SplashScreen() {
-    val infiniteTransition = rememberInfiniteTransition(label = "splash_anim")
+    val coroutineScope = rememberCoroutineScope()
+    val logoScale = remember { Animatable(0.92f) }
+    val logoAlpha = remember { Animatable(0f) }
+    val contentOffsetY = remember { Animatable(10f) }
 
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            logoScale.animateTo(1f, tween(800, easing = PlenxoMotion.DecelerateEasing))
+        }
+        coroutineScope.launch {
+            logoAlpha.animateTo(1f, tween(600))
+        }
+        coroutineScope.launch {
+            contentOffsetY.animateTo(0f, tween(700, easing = PlenxoMotion.DecelerateEasing))
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "splash_anim")
     val progress by infiniteTransition.animateFloat(
         initialValue = 0.05f,
         targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1800, easing = PlenxoMotion.StandardEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "loading_progress"
@@ -71,7 +91,13 @@ fun SplashScreen() {
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .graphicsLayer {
+                    alpha = logoAlpha.value
+                    scaleX = logoScale.value
+                    scaleY = logoScale.value
+                    translationY = contentOffsetY.value
+                },
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

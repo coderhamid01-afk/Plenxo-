@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.animation.subtleEntrance
+import com.example.ui.animation.plenxoClickable
 import com.example.calling.CallManager
 import com.example.calling.model.CallType
 import com.example.model.ChatRoom
@@ -433,7 +435,7 @@ fun UserProfileScreen(
 
                 // 2. HERO AVATAR & IDENTITY
                 Box(
-                    modifier = Modifier.size(128.dp),
+                    modifier = Modifier.size(128.dp).subtleEntrance(index = 0),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -522,7 +524,7 @@ fun UserProfileScreen(
                     color = cardBg,
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, borderColor),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().subtleEntrance(index = 1)
                 ) {
                     Row(
                         modifier = Modifier

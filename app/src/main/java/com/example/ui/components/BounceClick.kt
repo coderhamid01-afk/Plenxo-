@@ -1,6 +1,7 @@
 package com.example.ui.components
 import androidx.compose.foundation.combinedClickable
 
+import com.example.ui.animation.PlenxoMotion
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,12 +13,16 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 
 fun Modifier.bounceClick(
-    scaleDown: Float = 0.92f,
+    scaleDown: Float = 0.97f,
     onClick: () -> Unit
 ) = composed {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) scaleDown else 1f, label = "bounce")
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) scaleDown else 1f,
+        animationSpec = PlenxoMotion.PressInteractionSpec,
+        label = "bounce"
+    )
 
     this
         .graphicsLayer {
@@ -26,20 +31,24 @@ fun Modifier.bounceClick(
         }
         .clickable(
             interactionSource = interactionSource,
-            indication = androidx.compose.foundation.LocalIndication.current,
+            indication = androidx.compose.material3.ripple(),
             onClick = onClick
         )
 }
 
 @androidx.compose.foundation.ExperimentalFoundationApi
 fun Modifier.bounceCombinedClickable(
-    scaleDown: Float = 0.95f,
+    scaleDown: Float = 0.97f,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) = composed {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) scaleDown else 1f, label = "bounce")
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) scaleDown else 1f,
+        animationSpec = PlenxoMotion.PressInteractionSpec,
+        label = "bounce"
+    )
 
     this
         .graphicsLayer {
@@ -48,7 +57,7 @@ fun Modifier.bounceCombinedClickable(
         }
         .combinedClickable(
             interactionSource = interactionSource,
-            indication = androidx.compose.foundation.LocalIndication.current,
+            indication = androidx.compose.material3.ripple(),
             onLongClick = onLongClick,
             onClick = onClick
         )

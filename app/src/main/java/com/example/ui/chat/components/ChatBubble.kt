@@ -43,6 +43,7 @@ import com.example.ui.components.VoiceNoteBubble
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.ui.animation.fluidSpringBubbleEntrance
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -112,6 +113,7 @@ fun ChatBubble(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .fluidSpringBubbleEntrance()
             .padding(vertical = 3.dp, horizontal = 12.dp),
         horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom

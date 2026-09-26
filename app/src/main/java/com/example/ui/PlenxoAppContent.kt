@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -68,6 +69,7 @@ import coil.compose.AsyncImage
 import com.example.util.PermissionManager
 import com.example.util.NetworkConnectivityObserver
 import com.example.util.NetworkStatus
+import com.example.ui.animation.PlenxoMotion
 import com.example.viewmodel.PlenxoScreen
 import com.example.viewmodel.PlenxoViewModel
 import com.example.viewmodel.ChatRequestViewModel
@@ -193,6 +195,12 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
     val networkStatus by networkObserver.status.collectAsState()
     var previousStatus by remember { mutableStateOf<NetworkStatus?>(null) }
 
+    // Premium App Launch Animation State
+    var appLaunched by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        appLaunched = true
+    }
+
     LaunchedEffect(networkStatus) {
         if (previousStatus == NetworkStatus.Lost && networkStatus == NetworkStatus.Available) {
             Toast.makeText(context, "Back Online", Toast.LENGTH_SHORT).show()
@@ -200,24 +208,37 @@ fun PlenxoAppContent(viewModel: PlenxoViewModel, permissionManager: PermissionMa
         previousStatus = networkStatus
     }
 
+    val launchScale by animateFloatAsState(
+        targetValue = if (appLaunched) 1f else 1.02f,
+        animationSpec = tween(400, easing = PlenxoMotion.DecelerateEasing),
+        label = "LaunchScale"
+    )
+    val launchAlpha by animateFloatAsState(
+        targetValue = if (appLaunched) 1f else 0f,
+        animationSpec = tween(400),
+        label = "LaunchAlpha"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .graphicsLayer {
+                scaleX = launchScale
+                scaleY = launchScale
+                alpha = launchAlpha
+            }
             .background(MaterialTheme.colorScheme.background)
     ) {
         androidx.compose.animation.AnimatedContent(
             targetState = currentScreen,
             transitionSpec = {
-                (androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                 androidx.compose.animation.slideInHorizontally(
-                     initialOffsetX = { (it * 0.05f).toInt() },
-                     animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                 )) togetherWith
-                (androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                 androidx.compose.animation.slideOutHorizontally(
-                     targetOffsetX = { (-it * 0.05f).toInt() },
-                     animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                 ))
+                if (targetState == PlenxoScreen.HOME && initialState == PlenxoScreen.SPLASH) {
+                    // Special entrance for home from splash
+                    (fadeIn(animationSpec = tween(500)) + scaleIn(initialScale = 0.92f)) togetherWith
+                    fadeOut(animationSpec = tween(300))
+                } else {
+                    PlenxoMotion.ScreenEnterTransition togetherWith PlenxoMotion.ScreenExitTransition
+                }
             },
             label = "screen_transition"
         ) { screen ->

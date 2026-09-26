@@ -3,6 +3,8 @@ package com.example.ui
 import androidx.compose.ui.res.stringResource
 import com.example.R
 import com.example.ui.components.bounceClick
+import com.example.ui.animation.subtleEntrance
+import com.example.ui.animation.plenxoClickable
 
 import android.app.Activity
 import android.net.Uri
@@ -184,9 +186,9 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                SettingsCategoryHeader("Privacy & Security")
+                SettingsCategoryHeader("Privacy & Security", modifier = Modifier.subtleEntrance(index = 0))
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().subtleEntrance(index = 1),
                     color = cardBg,
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -211,6 +213,7 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .subtleEntrance(index = 2)
                         .border(1.dp, dividerColor, RoundedCornerShape(20.dp)),
                     color = cardBg,
                     shape = RoundedCornerShape(20.dp)
@@ -255,6 +258,7 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .subtleEntrance(index = 3)
                         .border(1.dp, dividerColor, RoundedCornerShape(20.dp))
                         .bounceClick {
                             if (is2FAEnabled) {
@@ -342,6 +346,7 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .subtleEntrance(index = 4)
                         .border(1.dp, dividerColor, RoundedCornerShape(20.dp))
                         .bounceClick { viewModel.navigateToScreen(PlenxoScreen.ACTIVE_SESSIONS) }
                         .testTag("logged_in_devices_tile"),
@@ -388,9 +393,9 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                SettingsCategoryHeader("Animations")
+                SettingsCategoryHeader("Animations", modifier = Modifier.subtleEntrance(index = 5))
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().subtleEntrance(index = 6),
                     color = cardBg,
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -869,13 +874,13 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingsCategoryHeader(title: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+fun SettingsCategoryHeader(title: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     Text(
         text = title.uppercase(),
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
         color = color,
-        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 6.dp)
+        modifier = modifier.padding(start = 8.dp, top = 8.dp, bottom = 6.dp)
     )
 }
 

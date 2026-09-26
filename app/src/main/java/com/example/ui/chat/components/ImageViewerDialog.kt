@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
@@ -76,6 +78,22 @@ fun ImageViewerDialog(
         }
     }
 
+    var entranceTriggered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        entranceTriggered = true
+    }
+
+    val entranceScale by animateFloatAsState(
+        targetValue = if (entranceTriggered) 1f else 0.9f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
+        label = "entranceScale"
+    )
+    val entranceAlpha by animateFloatAsState(
+        targetValue = if (entranceTriggered) 1f else 0f,
+        animationSpec = tween(300),
+        label = "entranceAlpha"
+    )
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -88,6 +106,11 @@ fun ImageViewerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = entranceScale
+                    scaleY = entranceScale
+                    alpha = entranceAlpha
+                }
                 .background(Color.Black)
                 .testTag("image_viewer_dialog")
         ) {

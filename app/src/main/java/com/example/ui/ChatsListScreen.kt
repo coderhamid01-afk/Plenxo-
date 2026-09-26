@@ -51,6 +51,10 @@ import com.example.model.ChatRoom
 import com.example.model.FriendRequest
 import com.example.ui.components.ProfileRingBox
 import com.example.ui.components.bounceCombinedClickable
+import com.example.ui.animation.PlenxoMotion
+import com.example.ui.animation.plenxoClickable
+import com.example.ui.animation.subtleEntrance
+import com.example.ui.animation.shimmerSkeletonLoader
 import com.example.viewmodel.PlenxoScreen
 import com.example.viewmodel.PlenxoViewModel
 import java.text.SimpleDateFormat
@@ -677,20 +681,20 @@ fun ChatsListScreen(
                 // Main Content List or Empty State
                 Box(modifier = Modifier.weight(1f)) {
                     if (isLoading && chats.isEmpty()) {
-                        // Shimmer Loading Skeleton
+                        // Premium Shimmer Loading Skeleton
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            repeat(6) {
+                            repeat(8) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(76.dp)
                                         .padding(vertical = 6.dp)
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(Color(0xFF131B2E).copy(alpha = 0.6f))
+                                        .shimmerSkeletonLoader()
                                 )
                             }
                         }
@@ -784,7 +788,7 @@ fun ChatsListScreen(
                                 .fillMaxSize()
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            itemsIndexed(filteredChats, key = { _, chat -> chat.chatId }) { _, chat ->
+                            itemsIndexed(filteredChats, key = { _, chat -> chat.chatId }) { index, chat ->
                                 val recipientUid = chat.participantUids.firstOrNull { it != currentUserId } ?: "Unknown"
                                 val recipientUser = usersCache[recipientUid]
                                 val displayName = recipientUser?.displayName?.takeIf { it.isNotBlank() } ?: "User"
@@ -803,6 +807,7 @@ fun ChatsListScreen(
                                 }
 
                                 ModernChatCardItem(
+                                    modifier = Modifier.subtleEntrance(index = index % 10),
                                     chat = chat,
                                     recipientName = displayName,
                                     plenxoId = rawPlenxoId,
@@ -922,6 +927,7 @@ private fun FilterPill(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ModernChatCardItem(
+    modifier: Modifier = Modifier,
     chat: ChatRoom,
     recipientName: String,
     plenxoId: String = "",
@@ -950,7 +956,7 @@ fun ModernChatCardItem(
     val cardBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .shadow(2.dp, RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))

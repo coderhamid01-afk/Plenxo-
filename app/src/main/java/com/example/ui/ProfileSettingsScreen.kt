@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.CachePolicy
+import com.example.ui.animation.subtleEntrance
+import com.example.ui.animation.plenxoClickable
 import com.example.model.UserProfileDomainModel
 import com.example.viewmodel.ProfileSettingsViewModel
 import com.example.viewmodel.PlenxoViewModel
@@ -430,7 +432,7 @@ fun ProfileSettingsScreen(
                         val localRingId = com.example.util.SessionManager.getProfileRingId(contextLocal)
                         val userRingId = if (localRingId != "none") localRingId else (profile.profileRingId ?: "none")
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().subtleEntrance(index = 0),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             com.example.ui.components.ProfileRingBox(ringId = userRingId, borderWidth = 6.dp) {
@@ -676,6 +678,7 @@ fun ProfileSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .subtleEntrance(index = 1)
                                 .border(1.dp, strokeBorder, RoundedCornerShape(16.dp)),
                             color = cardBg,
                             shape = RoundedCornerShape(16.dp)
@@ -789,6 +792,7 @@ fun ProfileSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .subtleEntrance(index = 2)
                                 .border(1.dp, strokeBorder, RoundedCornerShape(16.dp)),
                             color = cardBg,
                             shape = RoundedCornerShape(16.dp)
