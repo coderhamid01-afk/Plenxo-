@@ -383,11 +383,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    // User Discovery & Social Dashboard
-    val discoverySearchQuery = MutableStateFlow("")
-    val discoveryUsers = MutableStateFlow<List<UserProfile>>(emptyList())
-    val discoveryRequestedUserIds = MutableStateFlow<Set<String>>(emptySet())
-    
     private val _outgoingPendingRequests = MutableStateFlow<List<FriendRequest>>(emptyList())
     val outgoingPendingRequests: StateFlow<List<FriendRequest>> = _outgoingPendingRequests.asStateFlow()
     
@@ -686,7 +681,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 withContext(Dispatchers.Main) {
-                    discoveryRequestedUserIds.value = discoveryRequestedUserIds.value + targetUid
                     Toast.makeText(getApplication(), "Friend request sent successfully", Toast.LENGTH_SHORT).show()
                     clearDeepLinkResult()
                 }
@@ -834,9 +828,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             _currentScreen.value = screen
-            if (screen == PlenxoScreen.DISCOVERY) {
-                preloadDiscoveryUsers()
-            }
             if (screen == PlenxoScreen.CHAT_REQUESTS) {
                 fetchPendingFriendRequests()
             }
@@ -4496,164 +4487,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun preloadDiscoveryUsers() {
-        discoverySearchJob?.cancel()
-        discoverySearchJob = viewModelScope.launch {
-            val currentUid = currentUserId
-            if (currentUid.isEmpty()) return@launch
-            try {
-                if (currentUserProfile.value == null) {
-                    val userDoc = firestore.collection("users").document(currentUid).get().await()
-                    val user = userDoc.toObject(UserProfile::class.java)
-                    currentUserProfile.value = user
-                }
-
-                discoveryUsers.value = emptyList()
-
-                val snapshot = firestore.collection("invitations")
-                    .whereEqualTo("senderId", currentUid)
-                    .whereEqualTo("status", "PENDING")
-                    .get()
-                    .await()
-                val list = snapshot.documents.mapNotNull { it.toObject(Invitation::class.java) }
-                val requestedIds = list.map { it.receiverId }.toSet()
-                discoveryRequestedUserIds.value = requestedIds
-                
-            } catch (e: Exception) {
-                Log.e("Plenxo", "Failed to preload discovery users", e)
-            }
-        }
-    }
-
-    fun updateDiscoverySearchQuery(query: String) {
-        val filtered = query.trim().take(30)
-        discoverySearchQuery.value = filtered
-    }
-
-    fun searchUserByCode() {
-        val rawInput = discoverySearchQuery.value.trim().removePrefix("@").removePrefix("#").trim()
-        if (rawInput.isBlank()) {
-            _errorMessage.value = "Please enter a valid Plenxo ID."
-            return
-        }
-
-        val numericPart = rawInput.removePrefix("PX-").removePrefix("px-").removePrefix("Px-").removePrefix("pX-").trim()
-        val formattedPx = if (numericPart.isNotBlank()) "PX-$numericPart" else rawInput.uppercase()
-
-        val queryKeys = buildSet {
-            if (formattedPx.isNotBlank()) add(formattedPx)
-            if (numericPart.isNotBlank()) add(numericPart)
-            if (rawInput.isNotBlank()) {
-                add(rawInput)
-                add(rawInput.uppercase())
-                add(rawInput.lowercase())
-            }
-        }
-
-        _isLoading.value = true
-        viewModelScope.launch {
-            try {
-                val foundDocs = mutableMapOf<String, UserProfile>()
-
-                // 1. Direct document lookup on /user_lookup/{formattedPx}
-                try {
-                    val lookupSnap = firestore.collection("user_lookup").document(formattedPx).get().await()
-                    if (lookupSnap.exists()) {
-                        val uid = lookupSnap.getString("uid") ?: lookupSnap.id
-                        val dName = lookupSnap.getString("displayName")?.takeIf { it.isNotBlank() && it != "User" } ?: "Plenxo User"
-                        val pId = lookupSnap.getString("plenxoId") ?: formattedPx
-                        val pic = lookupSnap.getString("profilePicUrl") ?: ""
-                        val ring = lookupSnap.getString("profileRingId") ?: "none"
-                        val prof = UserProfile(
-                            id = uid,
-                            uid = uid,
-                            displayName = dName,
-                            plenxoId = pId,
-                            userCode = pId.removePrefix("PX-"),
-                            profilePicUrl = pic,
-                            profileRingId = ring
-                        )
-                        foundDocs[uid] = prof
-                    }
-                } catch (e: Exception) {
-                    Log.w("Plenxo", "Direct user_lookup GET error: ${e.message}")
-                }
-
-                if (foundDocs.isEmpty()) {
-                    val collections = listOf("users")
-                    val fields = listOf("plenxoId", "userCode", "plenxo_id", "px_id", "user_code")
-
-                    for (collectionName in collections) {
-                        for (field in fields) {
-                            for (key in queryKeys) {
-                                try {
-                                    val snap = firestore.collection(collectionName)
-                                        .whereEqualTo(field, key)
-                                        .get().await()
-                                    for (doc in snap.documents) {
-                                        if (doc.exists()) {
-                                            val data = doc.data ?: continue
-                                            val resolvedUid = (data["uid"] as? String)?.ifBlank { null }
-                                                ?: (data["id"] as? String)?.ifBlank { null }
-                                                ?: doc.id
-                                            val resolvedName = (data["displayName"] as? String)?.ifBlank { null }
-                                                ?: (data["name"] as? String)
-                                                ?: (data["fullName"] as? String)
-                                                ?: "Plenxo User"
-                                            val rawPxId = (data["plenxoId"] as? String)
-                                                ?: (data["plenxo_id"] as? String)
-                                                ?: (data["px_id"] as? String)
-                                                ?: (data["userCode"] as? String)
-                                                ?: (data["user_code"] as? String)
-                                                ?: ""
-                                            val cleanPxId = rawPxId.trim().removePrefix("@").removePrefix("#")
-                                            val normalizedPxId = if (cleanPxId.startsWith("PX-", ignoreCase = true)) {
-                                                "PX-${cleanPxId.removePrefix("PX-").removePrefix("px-")}"
-                                            } else if (cleanPxId.length == 6 && cleanPxId.all { it.isDigit() }) {
-                                                "PX-$cleanPxId"
-                                            } else if (cleanPxId.isNotBlank()) {
-                                                "PX-$cleanPxId"
-                                            } else {
-                                                formattedPx
-                                            }
-                                            val profilePic = (data["profilePicUrl"] as? String) ?: (data["avatar_url"] as? String) ?: ""
-                                            val profileRing = (data["selectedRingId"] as? String) ?: (data["profileRingId"] as? String) ?: "none"
-
-                                            val userProf = UserProfile(
-                                                id = resolvedUid,
-                                                uid = resolvedUid,
-                                                displayName = resolvedName,
-                                                plenxoId = normalizedPxId,
-                                                userCode = normalizedPxId.removePrefix("PX-"),
-                                                profilePicUrl = profilePic,
-                                                profileRingId = profileRing
-                                            )
-                                            foundDocs[resolvedUid] = userProf
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.w("Plenxo", "Search fallback note on $collectionName.$field = $key: ${e.message}")
-                                }
-                            }
-                        }
-                    }
-                }
-
-                val currentUid = currentUserId
-                val results = foundDocs.values.filter { it.uid.isNotBlank() && it.uid != currentUid }
-                discoveryUsers.value = results
-
-                if (results.isEmpty()) {
-                    _errorMessage.value = "No user found with Plenxo ID $formattedPx."
-                }
-            } catch (e: Exception) {
-                Log.e("Plenxo", "Search failed", e)
-                _errorMessage.value = "Search failed: ${e.localizedMessage}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
 
     fun sendFriendRequest(
         receiverId: String,
@@ -4688,7 +4521,6 @@ class PlenxoViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (successChat || successFriend) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        discoveryRequestedUserIds.value = discoveryRequestedUserIds.value + receiverId
                         onSuccess()
                     }
                 } else {

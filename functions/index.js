@@ -321,11 +321,12 @@ exports.onUserProfileWritten = onDocumentWritten("users/{userId}", async (event)
       return;
     }
   } else {
-    // If it doesn't exist in lookup, but is set in user doc, it might be a legacy or first-time assignment.
-    // However, in the new architecture, allocatePlenxoId handles the first-time mapping.
-    // If it's missing from lookup, we only allow creating it if the user doesn't already have another ID mapping.
-    // This prevents users from "claiming" IDs by just writing to their profile.
-    console.warn(`Plenxo ID ${formattedPxId} for user ${uid} not found in authoritative lookup. Skipping automatic mapping.`);
+    // If it doesn't exist in lookup, it's not a valid ID assigned by the server-side allocator.
+    // Revert it immediately on the user document to prevent manual "claiming".
+    console.warn(`SECURITY WARNING: User ${uid} attempted to set unassigned Plenxo ID ${formattedPxId}. Reverting.`);
+    await db.collection("users").doc(uid).update({
+      plenxoId: beforeData ? (beforeData.plenxoId || "") : ""
+    });
     return;
   }
 
@@ -410,47 +411,4 @@ exports.allocatePlenxoId = onCall(async (request) => {
   }
 
   return { success: true, plenxoId: assignedPxId };
-});
-
-/**
- * 7. Server-Side Backfill for Existing Users to /user_lookup/{plenxoId}
- * Requires ADMIN_SECRET header for security.
- */
-exports.backfillUserLookups = onRequest(async (req, res) => {
-  const secret = req.headers['x-plenxo-admin-secret'];
-  if (secret !== 'PLENXO_SECURE_BACKFILL_2024') {
-    return res.status(403).send({ success: false, error: "Unauthorized access" });
-  }
-
-  try {
-    const usersSnap = await db.collection("users").get();
-    let count = 0;
-
-    const batch = db.batch();
-    for (const doc of usersSnap.docs) {
-      const uData = doc.data();
-      const pId = String(uData.plenxoId || uData.userCode || "").trim();
-      if (!pId) continue;
-
-      const formattedPxId = pId.startsWith("PX-") ? pId : (pId.length === 6 && /^\d+$/.test(pId) ? `PX-${pId}` : pId);
-      const lookupRef = db.collection("user_lookup").doc(formattedPxId);
-
-      batch.set(lookupRef, {
-        plenxoId: formattedPxId,
-        uid: doc.id,
-        displayName: uData.displayName || uData.name || "Plenxo User",
-        profilePicUrl: uData.profilePicUrl || uData.photoUrl || "",
-        bio: uData.bio || uData.statusMessage || "",
-        profileRingId: uData.profileRingId || uData.selectedRingId || "none",
-        updatedAt: Date.now()
-      }, { merge: true });
-
-      count++;
-    }
-
-    await batch.commit();
-    res.status(200).send({ success: true, migratedCount: count });
-  } catch (err) {
-    res.status(500).send({ success: false, error: err.message });
-  }
 });

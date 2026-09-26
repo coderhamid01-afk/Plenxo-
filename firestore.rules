@@ -34,7 +34,12 @@ service cloud.firestore {
       // Completely block collection list enumeration
       allow list: if false;
       // Users can only create and modify their own profile
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && (
+        // Lock plenxoId: it can be set initially if null/empty, but once set it cannot be changed
+        (!('plenxoId' in resource.data) || resource.data.plenxoId == null || resource.data.plenxoId == "") ||
+        (request.resource.data.plenxoId == resource.data.plenxoId)
+      );
       allow delete: if isOwner(userId);
 
       // User subcollections (active_sessions, call_history, blocked, etc.)

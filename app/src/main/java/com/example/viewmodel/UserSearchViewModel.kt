@@ -7,14 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.model.UserModel
 import com.example.repository.UserRepository
 import com.example.repository.UserRepositoryImpl
-import com.example.util.getQuerySnapshotServerFirst
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class UserSearchViewModel @JvmOverloads constructor(
     application: Application,
